@@ -1,0 +1,8 @@
+.next/
+node_modules/
+.env
+.env.*
+!.env.example
+!.env.local.example
+out/
+dist/
