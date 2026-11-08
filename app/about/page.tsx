@@ -3,14 +3,17 @@ import {SiteLayout} from "@/components/site-shell";
 import {getPortfolioContent} from "@/lib/content";
 import {aboutDefaults as defaults} from "@/lib/about-content";
 
+function aboutOverlayRgba(hex:string,alpha:number){const value=hex.replace("#","");const full=value.length===3?value.split("").map(c=>c+c).join(""):value;const n=parseInt(full,16);if(!Number.isFinite(n))return `rgba(4,31,22,${alpha})`;return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${Math.max(0,Math.min(1,alpha))})`}
 export default async function AboutPage(){
  const {settings}=await getPortfolioContent();
  const d={...defaults,...(settings?.about_page||{})};
  const values=Array.isArray(d.values)?d.values:defaults.values;
  const milestones=Array.isArray(d.milestones)?d.milestones:defaults.milestones;
+ const overlayColor=d.heroOverlayColor||"#041f16";
+ const overlayStrength=Math.max(0,Math.min(100,Number(d.heroOverlayOpacity??82)))/100;
  return <SiteLayout><main className="about-premium">
-  <section className="about-premium-hero" style={{backgroundImage:`linear-gradient(90deg,rgba(4,31,22,.94),rgba(4,31,22,.76) 48%,rgba(4,31,22,.28)),url("${d.heroImage}")`}}>
-   <div className="container about-premium-hero-inner"><span className="about-premium-kicker">{d.eyebrow}</span><h1>{d.title}</h1><p>{d.description}</p><div className="about-hero-bottom"><Link href="/contact">Let’s work together <span>↗</span></Link><small>CREATIVE · DIGITAL · TECHNOLOGY</small></div></div>
+  <section className="about-premium-hero" style={{backgroundImage:`linear-gradient(90deg,${aboutOverlayRgba(overlayColor,overlayStrength)},${aboutOverlayRgba(overlayColor,overlayStrength*.78)} 48%,${aboutOverlayRgba(overlayColor,overlayStrength*.28)}),url("${d.heroImage}")`}}>
+   <div className="container about-premium-hero-inner"><span className="about-premium-kicker" style={{color:d.heroEyebrowColor||undefined}}>{d.eyebrow}</span><h1 style={{color:d.heroTitleColor||undefined}}>{d.title}</h1><p style={{color:d.heroDescriptionColor||undefined}}>{d.description}</p><div className="about-hero-bottom"><Link href="/contact">Let’s work together <span>↗</span></Link><small>CREATIVE · DIGITAL · TECHNOLOGY</small></div></div>
    <div className="about-hero-mark">A<span>.</span></div>
   </section>
   <section className="about-premium-story section"><div className="container about-story-grid"><div className="about-story-visual"><img src={d.storyImage} alt="Anaira creative studio and design work"/><span>ANAIRA GRAPHICS & DIGITAL SOLUTION</span></div><div className="about-story-copy"><span className="about-premium-kicker">WHO WE ARE</span><h2>{d.storyTitle}</h2><p>{d.story}</p><p>{d.story2}</p><div className="about-founded"><strong>2013</strong><span>Established in Kullu, Himachal Pradesh<br/>Serving creative and technology needs</span></div></div></div></section>

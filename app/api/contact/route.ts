@@ -55,6 +55,13 @@ export async function POST(req: Request) {
     }
   }
 
-  const status = emailSent ? 'sent' : (databaseSaved ? 'saved' : 'email-not-configured');
-  return NextResponse.redirect(new URL(`/contact?sent=1&delivery=${status}`, req.url), 303);
+  // Report the actual delivery outcome; never show success when neither
+  // the database nor the email provider accepted the enquiry.
+  if (emailSent) {
+    return NextResponse.redirect(new URL('/contact?sent=1&delivery=sent', req.url), 303);
+  }
+  if (databaseSaved) {
+    return NextResponse.redirect(new URL('/contact?sent=1&delivery=saved', req.url), 303);
+  }
+  return NextResponse.redirect(new URL('/contact?error=delivery', req.url), 303);
 }

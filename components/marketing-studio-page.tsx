@@ -8,9 +8,12 @@ export async function MarketingStudioPage({page}:{page:"social"|"advertising"|"s
  const key=`studio_${page}`;
  const data={...defaults[page],...(settings?.[key]||{})};
  const services=Array.isArray(data.services)?data.services:defaults[page].services;
+ const overlayHex=String(data.heroOverlayColor||"#041f16").replace("#","");
+ const overlayRgb=overlayHex.length===6?`${parseInt(overlayHex.slice(0,2),16)},${parseInt(overlayHex.slice(2,4),16)},${parseInt(overlayHex.slice(4,6),16)}`:"4,31,22";
+ const overlayStrength=Math.max(0,Math.min(100,Number(data.heroOverlayOpacity??82)))/100;
  return <SiteLayout><main className="studio-page">
-  <section className="studio-hero" style={{backgroundImage:`linear-gradient(90deg,rgba(4,31,22,.94) 0%,rgba(4,31,22,.78) 48%,rgba(4,31,22,.22) 100%),url("${data.heroImage||defaults[page].heroImage}")`}}>
-   <div className="container studio-hero-inner"><span className="studio-eyebrow">{data.eyebrow}</span><h1>{data.title}</h1><p>{data.description}</p><div className="studio-hero-actions"><Link href="/contact">Discuss a project <span>↗</span></Link><span className="studio-est">ANAIRA · KULLU · INDIA</span></div></div>
+  <section className="studio-hero" style={{backgroundImage:`linear-gradient(90deg,rgba(${overlayRgb},${overlayStrength}) 0%,rgba(${overlayRgb},${overlayStrength*.82}) 48%,rgba(${overlayRgb},${overlayStrength*.22}) 100%),url("${data.heroImage||defaults[page].heroImage}")`}}>
+   <div className="container studio-hero-inner"><span className="studio-eyebrow" style={{color:data.heroEyebrowColor||undefined}}>{data.eyebrow}</span><h1 style={{color:data.heroTitleColor||undefined}}>{data.title}</h1><p style={{color:data.heroDescriptionColor||undefined}}>{data.description}</p><div className="studio-hero-actions"><Link href="/contact">Discuss a project <span>↗</span></Link><span className="studio-est">ANAIRA · KULLU · INDIA</span></div></div>
    <div className="studio-hero-index">01 <i/> 0{services.length}</div>
   </section>
   <section className="studio-intro section"><div className="container studio-intro-grid"><div><span className="studio-kicker">THE ANAIRA APPROACH</span><h2>{data.introTitle}</h2></div><div><p>{data.intro}</p><div className="studio-proof"><span><b>01</b> Strategy-led</span><span><b>02</b> Detail-focused</span><span><b>03</b> Measurable delivery</span></div></div></div></section>
