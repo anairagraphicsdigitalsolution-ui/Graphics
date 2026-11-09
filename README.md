@@ -146,3 +146,29 @@ In Admin CMS → Website Settings & Text → Homepage Hero Studio:
 - Configure image fit and focal position, transition (fade, slide, zoom/fade, horizontal scroll), autoplay and interval.
 - Use previous/next arrows and slide indicators on the public homepage.
 - Save Website Settings to publish changes. Supabase schema and Storage bucket must be initialized first.
+
+
+## Dynamic brand logo (v6.32)
+The header and footer now read `logo_url` from the public `site_settings` row (`id=main`) and use `/anaira-logo.png` only as a fallback. In Admin → Website Settings & Text → General Settings, upload the logo, then click **Save Website Settings**. The uploaded Supabase Storage URL is then used by both header and footer.
+
+
+## AI Growth Engine v6.43
+
+Phase 2 adds CRM lead scoring/status controls, follow-up tasks, content approval and schedule-queue controls, and campaign lifecycle records. Apply `supabase/anaira-ai-growth-phase2.sql` before deploying. See `ANAIRA-AI-GROWTH-SETUP.md` for credential and provider prerequisites.
+
+
+## Anaira AI Growth Engine v6.45
+
+The `/admin/ai-growth` workspace now includes tenant CRM, lead scoring, follow-up tasks, content approval and scheduling, editable AI knowledge base, automation rules, 30-day analytics, Meta OAuth, WhatsApp text webhook AI replies, and a protected Vercel Cron publishing/WhatsApp job worker. See `ANAIRA-AI-GROWTH-SETUP.md` for required provider environment variables and integration limitations.
+
+### v6.47 Meta messaging webhook
+
+Instagram DM and Facebook Messenger inbound webhook endpoint: `/api/growth/meta/messaging-webhook`. Configure the Meta Webhooks callback URL on the production domain, verify with `META_WEBHOOK_VERIFY_TOKEN`, subscribe Page `messages` and Instagram `messages`, and request `pages_messaging` / `instagram_manage_messages` permissions. Meta App Review and eligible professional/Page accounts are required. Messaging is limited by Meta's conversation windows and platform policies. See `ANAIRA-AI-GROWTH-SETUP.md` for details and known limitations.
+
+
+## v6.48 — Inbox and email handoff update
+- Added authenticated workspace inbox API with conversation listing, assignment to workspace members, human takeover (pauses automated Meta DM replies), resume and close actions.
+- Added conversation assignment, human-handoff and last-message timestamp migration.
+- Added consent-checked Resend email queue endpoint and worker delivery support. Configure `RESEND_API_KEY` and `RESEND_FROM_EMAIL`; the sender domain must be verified with Resend.
+- Email jobs require a lead with explicit `consent_to_contact=true`; worker retries transient failures and records terminal failures.
+- Full social platform analytics, visual branching workflow designer, paid ads management, media upload/storage UI, LinkedIn/YouTube publishing and full external-provider E2E certification remain outside this release.

@@ -36,3 +36,21 @@ Audit basis: supplied v6.29 source ZIP and build logs shared on 8 Nov 2026.
 
 ## Overall status
 Source-level audit and targeted fixes completed. This is not a claim of end-to-end production certification. Complete the dependency-backed build and live Supabase/browser checks before treating the app as production-verified.
+
+## AI Growth Engine — v6.45 follow-up audit (2026-11-09)
+
+### Completed in this update
+- Atomic database-backed rate limiting on public website AI chat and lead capture.
+- Production Supabase migration applied and verified: `growth_public_rate_limits`, RLS enabled, `service_role` execution allowed, `anon` execution denied.
+- Verified rate-limit RPC behavior: requests 1 and 2 allowed at limit 2; request 3 denied.
+- Facebook Lead Ads webhook route with Meta challenge verification, HMAC signature verification, webhook event deduplication, Page token lead retrieval and CRM insertion with contact consent false.
+- Meta OAuth requests `leads_retrieval` permission.
+- Approximate INR token cost estimates for known OpenAI models in website chat, WhatsApp AI replies and content generation.
+- Source TypeScript/TSX syntax transpilation: 58 files, zero syntax diagnostics.
+
+### Not certified / still external or incomplete
+- Full `next build` and strict TypeScript check were not run because dependency installation timed out in this environment; do not treat syntax transpilation as a production build.
+- Meta Lead Ads requires Meta app review/permissions, Page webhook subscription, valid callback configuration and user-side test lead.
+- Instagram DMs and Facebook Messenger inbox are not implemented. Facebook Lead Ads and WhatsApp text conversations are separate flows.
+- Email automation, general visual workflow builder, extra automation triggers, social insights ingestion, paid ad buying/attribution, media upload pipeline, Instagram carousel/Stories, LinkedIn and YouTube publishing remain incomplete.
+- Provider API keys and Vercel environment variables are not present in source and must be configured by the owner. No secrets are embedded in the ZIP.

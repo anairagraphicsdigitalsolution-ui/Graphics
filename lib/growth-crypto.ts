@@ -1,0 +1,5 @@
+import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'crypto';
+function key(){const raw=process.env.GROWTH_TOKEN_ENCRYPTION_KEY||'';const b=Buffer.from(raw,'base64');if(b.length===32)return b;if(/^[a-f0-9]{64}$/i.test(raw))return Buffer.from(raw,'hex');throw new Error('GROWTH_TOKEN_ENCRYPTION_KEY must be a 32-byte base64 or 64-character hex key.');}
+export function encryptSecret(value:unknown){const iv=randomBytes(12),cipher=createCipheriv('aes-256-gcm',key(),iv);const body=Buffer.concat([cipher.update(JSON.stringify(value),'utf8'),cipher.final()]);return ['v1',iv.toString('base64'),cipher.getAuthTag().toString('base64'),body.toString('base64')].join('.');}
+export function decryptSecret(value:string){const [v,iv,tag,body]=value.split('.');if(v!=='v1'||!iv||!tag||!body)throw new Error('Invalid encrypted credential.');const decipher=createDecipheriv('aes-256-gcm',key(),Buffer.from(iv,'base64'));decipher.setAuthTag(Buffer.from(tag,'base64'));return JSON.parse(Buffer.concat([decipher.update(Buffer.from(body,'base64')),decipher.final()]).toString('utf8'));}
+export const hashState=(s:string)=>createHash('sha256').update(s).digest('hex');

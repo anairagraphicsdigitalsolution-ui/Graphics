@@ -46,6 +46,7 @@ export const seedProjects: Project[] = [
  {id:'graphics-portfolio',title:'Graphic Design & Print Portfolio',category:'Branding & Print',department:'graphics',kind:'creative',summary:'Brand identities, banners, menus, event creatives and print-ready artwork.',description:'Selected graphic design work by Anaira Graphics & Digital Solution.',image_url:'',live_url:'',technologies:['Graphic Design','Print Design'],featured:true,sort_order:30}
 ].map(project=>({...project,...caseStudyContent[project.id]})) as Project[];
 export const defaultSettings = {
+ gallery_title:'A visual collection of our work.', gallery_eyebrow:'THE ANAIRA GALLERY', gallery_intro:'A curated look at the ideas, identities and digital experiences created by Anaira.', gallery_images:[], gallery_show_captions:true, gallery_enable_filters:true, gallery_layout:'masonry', gallery_columns_desktop:3, gallery_columns_mobile:2, gallery_background:'#f4f0e6', gallery_accent:'#d7b76d', gallery_show_featured_first:true,
  home_department_cards:[
 {number:'01',title:'Creative Design',description:'Brand identity, graphics, print and campaign design.',href:'/creative',icon:'✦',image_url:'/images/homepage/expertise-1.jpg'},
 {number:'02',title:'Social Media & Advertising',description:'Social media management, paid campaigns and lead generation.',href:'/social-media',icon:'◎',image_url:'/images/homepage/expertise-2.jpg'},
