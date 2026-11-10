@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { growthContext, requireGrowthRole } from '@/lib/growth-server';
+import {growthContext, requireGrowthRole, requireGrowthFeature} from '@/lib/growth-server';
 const json=(body:unknown,status=200)=>NextResponse.json(body,{status,headers:{'Cache-Control':'no-store'}});
 export async function GET(req:NextRequest){
  const ctx=await growthContext(req); if('response' in ctx)return ctx.response;
  const orgId=req.nextUrl.searchParams.get('organizationId')||'';
  if(!await requireGrowthRole(ctx.db,ctx.userId,orgId,['owner','manager','agent']))return json({error:'Forbidden.'},403);
+ if(!await requireGrowthFeature(ctx.db,ctx.userId,orgId,'ai_employee'))return json({error:'This module is not included in your workspace plan.'},402);
  const {data,error}=await ctx.db.from('growth_conversations').select('id,channel,visitor_id,status,messages,assigned_to,needs_human,last_message_at,created_at,updated_at').eq('organization_id',orgId).order('last_message_at',{ascending:false,nullsFirst:false}).limit(100);
  if(error)return json({error:'Unable to load inbox.'},500);
  const ids=(data||[]).map((x:any)=>x.assigned_to).filter(Boolean);

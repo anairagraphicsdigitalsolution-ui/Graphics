@@ -1,0 +1,14 @@
+const fs=require('node:fs'),path=require('node:path'),root=path.resolve(__dirname,'..'),read=p=>fs.readFileSync(path.join(root,p),'utf8'),checks=[];const check=(n,v)=>checks.push({n,v});
+const migration=read('supabase/migrations/20261110000000_growth_cashfree_payments_v6794.sql'),checkout=read('app/api/growth/billing/checkout/route.ts'),webhook=read('app/api/growth/billing/cashfree-webhook/route.ts'),ui=read('components/growth-workspace-billing.tsx');
+check('payment ledger and unique Cashfree order IDs',/growth_payment_transactions/.test(migration)&&/provider_order_id text not null unique/.test(migration));
+check('webhook event idempotency ledger',/growth_payment_webhook_events/.test(migration)&&/event_key text not null unique/.test(migration));
+check('payment tables service-role only',/enable row level security/.test(migration)&&/revoke all .* from public,anon,authenticated/.test(migration));
+check('checkout requires authenticated workspace owner',/growthContext/.test(checkout)&&/requireGrowthRole\(c\.db,c\.userId,orgId,\['owner'\]\)/.test(checkout));
+check('checkout calculates amount from server plan catalogue',/monthly_price_minor/.test(checkout)&&/yearly_price_minor/.test(checkout)&&!/body\.amount/.test(checkout));
+check('Cashfree secrets are server-side only',/CASHFREE_APP_ID/.test(checkout)&&/CASHFREE_SECRET_KEY/.test(checkout)&&!ui.includes('CASHFREE_SECRET_KEY'));
+check('webhook validates HMAC signature against raw request body',/createHmac\('sha256',secret\)/.test(webhook)&&/timestamp\+raw/.test(webhook)&&/timingSafeEqual/.test(webhook));
+check('webhook verifies payment with Cashfree API before activation',/orders\/\$\{encodeURIComponent\(orderId\)\}\/payments/.test(webhook)&&/payment_status\)==='SUCCESS'/.test(webhook));
+check('subscription activates only after amount and currency match',/payment_amount\).*payment\.amount_minor/.test(webhook)&&/payment_currency\|\|'INR'/.test(webhook)&&/status:'active'/.test(webhook));
+check('webhook event recorded after processing for safe retry',webhook.indexOf("from('growth_payment_webhook_events').insert")>webhook.indexOf('const verify=await fetch'));
+check('workspace checkout uses Cashfree SDK and selected plan price',/cashfree\.checkout/.test(ui)&&/Pay with Cashfree/.test(ui)&&/availablePlans/.test(ui));
+let fail=0;for(const c of checks){console.log(`${c.v?'PASS':'FAIL'} ${c.n}`);if(!c.v)fail++;}console.log(`${checks.length-fail}/${checks.length} Cashfree checks passed.`);process.exitCode=fail?1:0;

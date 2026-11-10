@@ -1,0 +1,6 @@
+const fs=require('fs'),path=require('path'),root=process.cwd();
+const api=fs.readFileSync(path.join(root,'app/api/growth/crm/attachments/route.ts'),'utf8');
+const ui=fs.readFileSync(path.join(root,'components/growth-crm.tsx'),'utf8');
+const sql=fs.readFileSync(path.join(root,'supabase/migrations/20261110010000_growth_crm_private_attachments_v6795.sql'),'utf8');
+const checks=[['authenticated tenant authorization',api.includes('growthContext')&&api.includes('requireGrowthRole')],['lead scoped to organization',api.includes(".eq('organization_id',orgId)")&&api.includes(".eq('id',leadId)")],['private storage bucket',sql.includes("'growth-crm-private'")&&sql.includes('public=false')],['10 MB upload ceiling',api.includes('10*1024*1024')&&sql.includes('<= 10485760')],['MIME allow-list',api.includes('const MIME=new Set')],['signed temporary download URLs',api.includes('createSignedUrl(row.storage_path,120)')],['delete removes object and metadata',api.includes("storage.from(BUCKET).remove")&&api.includes(".from('growth_lead_attachments').delete()")],['CRM attachment UI',ui.includes('Customer documents & attachments')&&ui.includes('uploadAttachment')]];
+let failed=0;for(const [name,ok] of checks){console.log(`${ok?'PASS':'FAIL'} ${name}`);if(!ok)failed++;}if(failed)process.exit(1);console.log(`CRM attachment checks: ${checks.length}/${checks.length} passed`);

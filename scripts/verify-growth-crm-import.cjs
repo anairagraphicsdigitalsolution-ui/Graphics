@@ -1,0 +1,15 @@
+const fs=require('fs'),path=require('path');const read=p=>fs.readFileSync(path.join(process.cwd(),p),'utf8');const route=read('app/api/growth/crm/import/route.ts'),crm=read('components/growth-crm.tsx'),update=read('app/api/growth/lead-update/route.ts'),dashboard=read('components/growth-dashboard.tsx');const checks=[];const check=(n,v)=>{checks.push(!!v);console.log(`${v?'PASS':'FAIL'} ${n}`)};
+check('CSV import endpoint is tenant scoped',route.includes("requireGrowthRole(ctx.db, ctx.userId, orgId, ['owner', 'manager'])")&&route.includes("eq('organization_id', orgId)"));
+check('CSV parser supports quoted commas and escaped quotes',route.includes("input[i + 1] === '\"'")&&route.includes('quoted = true'));
+check('CSV upload enforces 1 MB and 500 row bounds',route.includes('1024 * 1024')&&route.includes('rows.length > 501'));
+check('CSV headers require name and email or phone',route.includes("index('name') < 0")&&route.includes("index('phone') < 0"));
+check('Duplicate email and phone detection is workspace-local',route.includes("`e:${String(lead.email).toLowerCase()}`")&&route.includes("`p:${String(lead.phone).replace(/\\D/g, '')}`"));
+check('Imported contacts default to no marketing consent',route.includes('consent_to_contact: false'));
+check('Import requires owner or manager role',route.includes("['owner', 'manager']"));
+check('Import action is exposed in CRM UI',crm.includes("/api/growth/crm/import")&&crm.includes('Import CSV'));
+check('CRM provides a downloadable CSV import template',crm.includes('downloadImportTemplate')&&crm.includes('anaira-crm-import-template.csv'));
+check('Proposal status supported by CRM and API',crm.includes("'proposal'")&&update.includes("'proposal'"));
+check('Proposal status exposed in dashboard lead editor',dashboard.includes('<option value="proposal">Proposal</option>'));
+check('Import action writes an audit event',route.includes("event_type: 'crm.leads_imported'"));
+check('CSV import consumes tenant lead quota before insert',route.includes("consumeGrowthQuota(ctx.db, orgId, 'leads', inserts.length") && route.indexOf('consumeGrowthQuota') < route.indexOf("from('growth_leads').insert(inserts)"));
+const failed=checks.filter(x=>!x).length;console.log(`${checks.length-failed}/${checks.length} CRM import checks passed`);if(failed)process.exit(1);

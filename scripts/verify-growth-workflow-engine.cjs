@@ -1,0 +1,21 @@
+const fs=require('fs');const path=require('path');const root=process.cwd();const read=p=>fs.readFileSync(path.join(root,p),'utf8');const checks=[];function check(name,ok){checks.push({name,ok:!!ok});if(!ok)console.error('FAIL',name);else console.log('PASS',name);}
+const api=read('app/api/growth/automation/route.ts');const worker=read('app/api/growth/worker/route.ts');const ui=read('components/growth-control-center.tsx');const migration=read('supabase/migrations/20261109171422_growth_workflow_versions_and_runs_v679.sql');const hardening=read('supabase/migrations/20261109171434_growth_workflow_audit_grants_hardening_v6791.sql');
+check('immutable workflow version table',/create table if not exists public\.growth_workflow_versions/.test(migration));
+check('tenant scoped version policies',/private\.is_growth_member\(organization_id\)/.test(migration)&&/private\.is_growth_manager\(organization_id\)/.test(migration));
+check('step-level run event table and index',/growth_workflow_run_events/.test(migration)&&/growth_workflow_run_events_rule_idx/.test(migration));
+check('workflow audit tables are write-restricted to service role',/revoke all on table public\.growth_workflow_run_events from public, anon, authenticated/i.test(hardening)&&/grant select on table public\.growth_workflow_versions to authenticated/i.test(hardening));
+check('safe workflow simulation without external effects',/action==='simulate'/.test(api)&&/executed:false/.test(api)&&/external_effect:false/.test(api));
+check('workflow updates create new immutable versions with optimistic concurrency',/action==='update_steps'/.test(api)&&/eq\('version',Number\(rule\.version/.test(api)&&/requiresRepublish:true/.test(api));
+check('legacy workflows get a baseline snapshot before first edit',/currentSnapshot/.test(api)&&/baselineError/.test(api)&&/legacyWorkflowSteps/.test(api));
+check('restore creates a new version, not history overwrite',/action==='restore_version'/.test(api)&&/snapshot/.test(api));
+check('failed run retry and safe cancellation',/action==='retry_run'/.test(api)&&/action==='cancel_run'/.test(api));
+check('worker records execution lifecycle and failures',/step_started/.test(worker)&&/step_succeeded/.test(worker)&&/step_failed/.test(worker)&&/run_failed/.test(worker));
+check('nested all/any condition groups are validated and evaluated safely',/validateExpression/.test(api)&&/node\.conditions\.length>8/.test(api)&&/expression\.conditions\.map/.test(worker)&&/results\.some\(Boolean\)/.test(worker)&&/results\.every\(Boolean\)/.test(worker));
+check('UI provides simulation, version restore and run controls',/Simulate workflow/.test(ui)&&/Restore v/.test(ui)&&/Retry/.test(ui)&&/Execution event log/.test(ui));
+const runsPage=read('app/admin/ai-growth/automation/runs/page.tsx');const logsPage=read('app/admin/ai-growth/automation/logs/page.tsx');
+check('independent workflow runs URL',runsPage.includes("initialPanel=\"workflow-runs\""));
+check('independent workflow logs URL',logsPage.includes("initialPanel=\"workflow-logs\""));
+check('workflow navigation links open independent URLs',ui.includes('href=\"/admin/ai-growth/automation/runs\"')&&ui.includes('href=\"/admin/ai-growth/automation/logs\"'));
+check('workflow run status filter and search UI',ui.includes("panel==='workflow-runs'")&&ui.includes('runFilter')&&ui.includes('runSearch'));
+check('read-only execution log UI',ui.includes("panel==='workflow-logs'")&&ui.includes('Execution Logs'));
+const failed=checks.filter(x=>!x.ok);console.log(`${checks.length-failed.length}/${checks.length} workflow-engine checks passed`);if(failed.length)process.exit(1);

@@ -163,3 +163,42 @@ Instagram DM and Facebook Messenger inbox automation, email sending/follow-ups, 
 - Added consent-checked Resend email queue endpoint and worker delivery support. Configure `RESEND_API_KEY` and `RESEND_FROM_EMAIL`; the sender domain must be verified with Resend.
 - Email jobs require a lead with explicit `consent_to_contact=true`; worker retries transient failures and records terminal failures.
 - Full social platform analytics, visual branching workflow designer, paid ads management, media upload/storage UI, LinkedIn/YouTube publishing and full external-provider E2E certification remain outside this release.
+
+
+## v6.52 sequential workflow engine
+The v6.52 migration `20261109123000_growth_multistep_workflows.sql` is included and has been applied to the connected Anaira Supabase project. The Control Center supports up to 12 sequential steps (follow-up task, admin review, wait, WhatsApp, email). Workflows start disabled and must be enabled by an owner/manager. WhatsApp/email actions require `consent_to_contact=true`. The worker is protected by `CRON_SECRET`; Vercel Hobby's daily schedule means a configured delay is a minimum delay, not a guaranteed exact send time. For near-real-time processing, call `/api/growth/worker` from a trusted external scheduler with `Authorization: Bearer CRON_SECRET`.
+
+
+## v6.75.7 — Worker scheduler and database hardening
+
+The worker supports three deployment profiles:
+1. Vercel Hobby: keep the default daily cron; this is not suitable for delayed follow-ups.
+2. Vercel Pro/Enterprise: after confirming plan eligibility, use `vercel.pro.json` as `vercel.json` for per-minute processing.
+3. External fallback: enable GitHub Actions and add repository secrets `ANAIRA_GROWTH_SITE_URL` and `ANAIRA_GROWTH_CRON_SECRET`. The secret must exactly match Vercel's `CRON_SECRET`. The workflow calls the worker every five minutes with a bearer authorization header. Use the workflow's manual dispatch to test after deployment.
+
+The worker endpoint is `GET /api/growth/worker`; it rejects missing/incorrect bearer secrets. The job claim RPC uses atomic row locking, and stale `processing` jobs are recovered after ten minutes. A five-minute scheduler therefore gives near-real-time queue polling, not exact-to-the-second delivery guarantees.
+
+The production Supabase project has also received migration `20261109160834_growth_security_and_fk_index_hardening_v6757`: 13 FK indexes added, anonymous execution of `is_anaira_admin()` revoked, and application-role execution of the event-trigger helper revoked. The three RLS-enabled tables with no policies (`growth_public_rate_limits`, `growth_whatsapp_templates`, `growth_youtube_upload_sessions`) are intentionally server/service-role-only; do not add broad client policies.
+
+## v6.75.8 — Production smoke checks and verified security posture
+
+- Added `npm run smoke:growth-public`, a read-only production smoke test for the deployed homepage, unauthenticated worker rejection, WhatsApp webhook challenge verification, and Meta Lead Ads webhook challenge verification. It never calls the worker with a valid secret and never prints supplied tokens.
+- Run it after deployment from a trusted terminal:
+
+```bash
+ANAIRA_GROWTH_SITE_URL=https://graphics.anairapos.in \
+WHATSAPP_VERIFY_TOKEN='your-configured-verification-token' \
+META_WEBHOOK_VERIFY_TOKEN='your-configured-meta-token' \
+npm run smoke:growth-public
+```
+
+- The live Supabase recheck confirmed `growth_public_rate_limits`, `growth_whatsapp_templates`, and `growth_youtube_upload_sessions` have RLS enabled and grant no SELECT/INSERT access to `anon` or `authenticated`; only `service_role` has SELECT. These no-policy findings are intentional server-only access controls, not a reason to add public policies.
+- `public.is_anaira_admin()` remains callable by `authenticated` because existing RLS policies depend on it; anonymous execution is revoked. `public.rls_auto_enable()` is callable only by `service_role`. The advisor's authenticated SECURITY DEFINER warning for the admin helper remains and requires a separate helper/RLS redesign before it can safely be removed.
+- Supabase Auth leaked-password protection is still disabled and must be enabled in the Supabase Dashboard under Authentication password security. This setting is not changed by a SQL migration.
+- Worker polling: Vercel Hobby remains daily. The included GitHub Actions fallback polls every five minutes once the workflow is enabled and repository secrets `ANAIRA_GROWTH_SITE_URL` and `ANAIRA_GROWTH_CRON_SECRET` are configured. Until a successful workflow run is observed, do not treat follow-up automation as active.
+- `npm run verify:all` passes. A full `npm run build` has not been certified: dependency installation repeatedly timed out in this environment, so build and strict TypeScript verification remain pending.
+- Meta/WhatsApp/Instagram/LinkedIn/YouTube/Resend live send and publish tests, OAuth refresh verification, Vercel deployment verification, and tenant-isolation E2E tests remain pending provider credentials and a reachable deployed environment. This release is a hardened code package, not a claim of completed production certification.
+
+## v6.75.9 — Build and regression CI gate
+
+The `.github/workflows/anaira-growth-ci.yml` workflow runs on pushes and pull requests to `main`/`master`, and can be manually dispatched. It installs dependencies, runs `npm run verify:all`, then runs `npm run build`. It uses only build-time placeholder public Supabase values; do not add production service-role keys or provider credentials to this workflow. After pushing the release, verify the CI run is green before deploying. A green CI run proves the build and static checks for that commit, not the real Meta/WhatsApp/LinkedIn/Google/Resend provider flows.

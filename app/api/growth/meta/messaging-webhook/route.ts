@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 import { decryptSecret } from '@/lib/growth-crypto';
 import { runLeadCreatedRules } from '@/lib/growth-automation';
 import { estimateOpenAICost } from '@/lib/growth-cost';
+import { consumeGrowthQuota } from '@/lib/growth-quota';
 
 export const runtime = 'nodejs';
 const json = (body: unknown, status = 200) => NextResponse.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
@@ -72,11 +73,13 @@ export async function POST(req: NextRequest) {
         const channel = platform === 'instagram' ? 'instagram' : 'facebook_messenger';
         const { data: conv } = await db.from('growth_conversations').select('id,messages,status,needs_human').eq('organization_id', org.id).eq('channel', channel).eq('visitor_id', senderId).maybeSingle();
         const history = Array.isArray(conv?.messages) ? conv.messages.slice(-12) : [];
-        if (conv?.needs_human || conv?.status === 'handed_off') { const now=new Date().toISOString(); await db.from('growth_conversations').update({messages:[...history,{role:'user',content:text,at:now}],last_message_at:now,updated_at:now}).eq('id',conv.id); await db.from('growth_webhook_events').update({processing_status:'processed',processed_at:now}).eq('id',inserted.id); processed++; continue; }
+        if (conv?.needs_human || conv?.status === 'handed_off') { const now=new Date().toISOString(); await db.from('growth_conversations').update({messages:[...history,{role:'user',content:text,at:now,recipient_account_id:externalId}],last_message_at:now,updated_at:now}).eq('id',conv.id); await db.from('growth_webhook_events').update({processing_status:'processed',processed_at:now}).eq('id',inserted.id); processed++; continue; }
+        const aiQuota=await consumeGrowthQuota(db,org.id,'ai_messages',1,`meta-ai:${eventKey}`,{channel});
+        if(!aiQuota.allowed)throw new Error(aiQuota.reason==='quota_exceeded'?'AI message plan quota exceeded.':'Usage metering unavailable.');
         const aiRes = await fetch('https://api.openai.com/v1/chat/completions', {
           method: 'POST', headers: { Authorization: `Bearer ${openai}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({ model: process.env.OPENAI_MODEL || 'gpt-4.1-mini', temperature: 0.35, max_tokens: 450, messages: [
-            { role: 'system', content: `You are Anaira Graphics & Digital Solution's ${platform === 'instagram' ? 'Instagram' : 'Facebook Messenger'} sales assistant. Reply in the customer's language. Use only this approved knowledge: ${JSON.stringify(org.knowledge_base || {})}. Do not invent prices, guarantees, timelines or services. Ask concise questions to understand service, business type and budget. Do not claim a human has approved a quote or that marketing consent was given. If a human is requested, say the team will take over.` },
+            { role: 'system', content: `You are ${String(org.name||'this business')}'s ${platform === 'instagram' ? 'Instagram' : 'Facebook Messenger'} sales assistant. Reply in the customer's language. Follow this brand profile: ${JSON.stringify(org.brand_profile||{})}. Use only this approved knowledge: ${JSON.stringify(org.knowledge_base || {})}. Do not invent prices, guarantees, timelines or services. Ask concise questions to understand service, business type and budget. Do not claim a human has approved a quote or that marketing consent was given. If a human is requested, say the team will take over.` },
             ...history.filter((m: any) => ['user', 'assistant'].includes(m.role)).map((m: any) => ({ role: m.role, content: String(m.content || '').slice(0, 2000) })),
             { role: 'user', content: text }
           ] })
@@ -85,7 +88,7 @@ export async function POST(req: NextRequest) {
         if (!aiRes.ok) throw new Error(ai.error?.message || 'AI response generation failed.');
         const answer = String(ai.choices?.[0]?.message?.content || 'Thank you for contacting Anaira. Our team will assist you.').slice(0, 1800);
         const now = new Date().toISOString();
-        const messages = [...history, { role: 'user', content: text, at: now }, { role: 'assistant', content: answer, at: now }].slice(-30);
+        const messages = [...history, { role: 'user', content: text, at: now, recipient_account_id: externalId }, { role: 'assistant', content: answer, at: now }].slice(-30);
         let conversationId = conv?.id;
         if (conv) await db.from('growth_conversations').update({ messages, last_message_at: now, updated_at: now }).eq('id', conv.id);
         else {

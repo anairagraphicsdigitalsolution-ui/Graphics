@@ -21,8 +21,43 @@ export async function growthContext(req: NextRequest): Promise<{ db: SupabaseCli
 
 export async function requireGrowthRole(db: SupabaseClient, userId: string, orgId: string, roles = ['owner', 'manager']) {
   if (!orgId) return false;
-  const { data } = await db.from('growth_members').select('role').eq('organization_id', orgId).eq('user_id', userId).maybeSingle();
-  if (roles.includes(String(data?.role || ''))) return true;
-  const { data: admin } = await db.rpc('is_anaira_admin');
-  return admin === true;
+  const [{ data: organization }, { data: member }] = await Promise.all([
+    db.from('growth_organizations').select('status').eq('id', orgId).maybeSingle(),
+    db.from('growth_members').select('role').eq('organization_id', orgId).eq('user_id', userId).maybeSingle(),
+  ]);
+  if (!organization) return false;
+  if (roles.includes(String(member?.role || '')) && organization.status === 'active') return true;
+  // growthContext uses a service-role client, so auth.uid() inside an RPC is null.
+  // Resolve the already-verified bearer-token user explicitly against the platform allow-list.
+  const { data: admin, error } = await db.from('admin_users').select('user_id').eq('user_id', userId).maybeSingle();
+  return !error && Boolean(admin?.user_id);
+}
+
+
+/**
+ * Plan feature entitlement check. Missing keys preserve legacy plans; an
+ * explicit false is a hard deny. Platform administrators bypass tenant plans.
+ */
+export async function requireGrowthFeature(db: SupabaseClient, userId: string, orgId: string, feature: string): Promise<boolean> {
+  if (!orgId || !/^[a-z][a-z0-9_]{1,63}$/.test(feature)) return false;
+  const { data: platformAdmin, error: adminError } = await db.from('admin_users').select('user_id').eq('user_id', userId).maybeSingle();
+  if (!adminError && platformAdmin?.user_id) return true;
+  const [{ data: organization, error: orgError }, { data: subscription, error: subError }] = await Promise.all([
+    db.from('growth_organizations').select('id,plan,status').eq('id', orgId).maybeSingle(),
+    db.from('growth_subscriptions').select('status,period_end,plan:growth_plans(features,is_active)').eq('organization_id', orgId).maybeSingle(),
+  ]);
+  if (orgError || subError || !organization || organization.status !== 'active') return false;
+  let features: any = null;
+  if (subscription) {
+    if (!['active','trialing'].includes(String(subscription.status)) || Date.parse(String(subscription.period_end)) <= Date.now()) return false;
+    const plan: any = subscription.plan;
+    if (!plan?.is_active) return false;
+    features = plan.features;
+  } else {
+    const { data: legacyPlan, error } = await db.from('growth_plans').select('features').eq('slug', organization.plan).eq('is_active', true).maybeSingle();
+    if (error) return false;
+    features = legacyPlan?.features;
+  }
+  if (!features || typeof features !== 'object' || Array.isArray(features)) return true;
+  return features[feature] !== false;
 }

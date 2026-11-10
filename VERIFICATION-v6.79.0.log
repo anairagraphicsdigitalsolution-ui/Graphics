@@ -1,0 +1,280 @@
+
+> anaira-graphics-portfolio@6.79.0 verify:all
+> npm run verify:syntax && npm run verify:growth-worker && npm run verify:growth-scheduler && npm run verify:growth-recovery && npm run verify:growth-security && npm run verify:growth-release && npm run verify:growth-tenant-lead && npm run verify:growth-navigation && npm run verify:growth-team && npm run verify:growth-whatsapp-tenant && npm run verify:growth-billing && npm run verify:growth-crm && npm run verify:growth-website-handoff && npm run verify:growth-email-inbox && npm run verify:growth-whatsapp-multi-number && npm run verify:growth-workflow-engine
+
+
+> anaira-graphics-portfolio@6.79.0 verify:syntax
+> node scripts/verify-syntax.cjs
+
+Checked 118 TS/TSX source files; 0 syntax errors.
+
+> anaira-graphics-portfolio@6.79.0 verify:growth-worker
+> node scripts/verify-growth-worker.cjs
+
+PASS workflow condition steps are accepted by API validation
+PASS workflow conditions restrict fields to lead temperature, status and source
+PASS workflow conditions restrict comparison operators
+PASS workflow condition false branch skips configured steps
+PASS workflow condition reads tenant-scoped lead fields
+PASS workflow builder exposes condition step
+PASS workflow WhatsApp steps enqueue a worker-supported job
+PASS WhatsApp worker checks active consent
+PASS WhatsApp worker blocks opted-out leads
+PASS WhatsApp worker requires a linked customer conversation
+PASS WhatsApp worker enforces the 24-hour service window
+PASS email worker checks active consent
+PASS approved WhatsApp template worker is routed
+PASS template worker rejects non-approved templates
+PASS template worker blocks opt-outs
+PASS workflow template step requires an approved template
+PASS template send API requires manager approval role
+PASS template registry enforces tenant scoping
+PASS template approval requires external provider confirmation
+PASS template API rejects non-simple categories
+PASS Ads advisor uses only synced organization snapshots
+PASS Ads advisor never changes campaign budget or status
+PASS Ads advisor flags low CTR
+PASS Ads advisor flags spend without clicks
+PASS Ads advisor compares campaign history
+PASS YouTube status route is organization-scoped
+PASS YouTube status route requires connected YouTube channel
+PASS YouTube status route refreshes expired OAuth token
+PASS YouTube status route requests processing details
+PASS YouTube status route reports provider processing failure
+PASS YouTube resumable session URL is encrypted at rest
+PASS YouTube resumable session is tenant and content scoped
+PASS YouTube upload probes remote acknowledged range before resuming
+PASS YouTube upload sends bounded byte ranges
+PASS YouTube worker persists byte offset after each chunk
+PASS YouTube worker requeues partial upload without consuming retry attempts
+PASS YouTube worker records provider video ID for idempotent completion
+PASS LinkedIn image upload uses initializeUpload
+PASS LinkedIn image upload validates MIME type
+PASS LinkedIn image upload enforces 10 MB limit
+PASS LinkedIn image post attaches uploaded image URN
+PASS LinkedIn carousel is not silently truncated
+PASS LinkedIn carousel enforces 2–20 image requirement
+PASS LinkedIn multi-image post uses official multiImage schema
+PASS LinkedIn multi-image assets are individually registered
+PASS Unified analytics loads social and ads snapshots
+PASS Unified analytics keeps metric definitions and currencies separate
+PASS Unified analytics selects latest snapshot per account
+PASS Unified analytics reports ads provider units without currency inference
+PASS YouTube Analytics route is organization-scoped
+PASS YouTube Analytics requires analytics OAuth scope
+PASS YouTube Analytics refreshes expired Google credentials
+PASS YouTube Analytics requests channel report metrics
+PASS YouTube Analytics limits reporting periods
+PASS YouTube Analytics UI is integrated in Growth Control Center
+PASS workflow API allows lead status-change trigger
+PASS workflow API allows lead temperature-change trigger
+PASS status-change workflows enqueue only on actual transitions
+PASS temperature-change workflows enqueue only on actual transitions
+PASS lead update route reads previous tenant-scoped values
+PASS lead update route invokes transition workflow runner
+PASS Growth Control Center exposes lead-created trigger
+PASS Growth Control Center exposes lead-status-changed trigger
+PASS Growth Control Center exposes lead-temperature-changed trigger
+PASS workflow form submits the selected trigger instead of hardcoding lead-created
+
+> anaira-graphics-portfolio@6.79.0 verify:growth-scheduler
+> node scripts/verify-growth-scheduler.cjs
+
+PASS default Vercel schedule remains Hobby-compatible (daily)
+PASS Vercel Pro profile supports one-minute worker cadence
+PASS GitHub Actions fallback invokes worker every five minutes
+PASS GitHub Actions worker uses protected CRON_SECRET header
+PASS GitHub Actions workflow is manually dispatchable
+PASS worker route rejects requests without CRON_SECRET
+PASS setup guide explains GitHub Actions secret configuration
+PASS worker endpoint supports authenticated GET invocation
+
+> anaira-graphics-portfolio@6.79.0 verify:growth-recovery
+> node scripts/verify-growth-recovery.cjs
+
+PASS stale processing jobs older than 10 minutes are detected
+PASS jobs below max attempts are requeued
+PASS recovered jobs use bounded exponential backoff
+PASS jobs at max attempts are marked failed
+PASS claim remains atomic with SKIP LOCKED
+PASS claim function remains service-role only
+PASS worker still calls the atomic claim RPC
+
+> anaira-graphics-portfolio@6.79.0 verify:growth-security
+> node scripts/verify-growth-security.cjs
+
+PASS FK index migration includes growth_ad_activation_audit_campaign_draft_idx
+PASS FK index migration includes growth_ad_drafts_adset_draft_idx
+PASS FK index migration includes growth_ad_drafts_creative_draft_idx
+PASS FK index migration includes growth_adset_drafts_campaign_draft_idx
+PASS FK index migration includes growth_conversations_assigned_to_idx
+PASS FK index migration includes growth_leads_assigned_to_idx
+PASS FK index migration includes growth_oauth_states_organization_idx
+PASS FK index migration includes growth_oauth_states_user_idx
+PASS FK index migration includes growth_tasks_assigned_to_idx
+PASS FK index migration includes growth_tasks_created_by_idx
+PASS FK index migration includes growth_webhook_events_organization_idx
+PASS FK index migration includes growth_workflow_runs_lead_idx
+PASS FK index migration includes growth_workflow_runs_rule_idx
+PASS anonymous role cannot execute Anaira admin helper
+PASS authenticated role retains RLS helper execution
+PASS event trigger helper is not exposed to app roles
+
+> anaira-graphics-portfolio@6.79.0 verify:growth-release
+> node scripts/verify-growth-release.cjs
+
+PASS release CI workflow exists
+PASS release CI runs the full regression suite
+PASS release CI runs the Next.js production build
+PASS release CI uses Node.js 20
+PASS release CI does not assume a lockfile cache exists
+PASS release CI disables Supabase client initialization at build time
+PASS release CI does not require production secrets
+PASS public smoke test checks worker authentication
+PASS public smoke test supports both provider webhook challenges
+PASS verify:all includes the release gate
+
+> anaira-graphics-portfolio@6.79.0 verify:growth-tenant-lead
+> node scripts/verify-growth-tenant-lead.cjs
+
+PASS lead capture no longer hardcodes Anaira tenant slug
+PASS conversation ID resolves authoritative organization
+PASS conversation and supplied slug mismatch is rejected
+PASS first-contact form requires a valid public tenant slug
+PASS inactive tenants cannot receive public leads
+PASS lead workflow starts in the resolved tenant
+PASS chat widget accepts a configurable organization slug
+PASS chat widget passes tenant slug to chat API
+PASS chat widget passes tenant slug to lead capture
+
+> anaira-graphics-portfolio@6.79.0 verify:growth-navigation
+> node scripts/verify-growth-navigation.cjs
+
+PASS dashboard has dedicated module navigation
+PASS CRM and Leads have a dedicated tab
+PASS Content Studio has a dedicated tab
+PASS Tasks have a dedicated tab
+PASS Campaigns have a dedicated tab
+PASS AI Control Center is separated from dashboard modules
+PASS Control Center has its own sub-navigation
+PASS AI Employee route opens the unified inbox panel by default
+PASS AI & Workflows panel is isolated
+PASS Analytics panel is isolated
+PASS Channels and Inbox panel is isolated
+PASS Ads Manager panel is isolated
+PASS Main portfolio admin remains a separate route
+
+> anaira-graphics-portfolio@6.79.0 verify:growth-team
+> node scripts/verify-growth-team.cjs
+
+PASS team invitation schema exists
+PASS team invitation API supports create/list/role/revoke
+PASS invitation acceptance checks exact user and email
+PASS team UI supports role change and removal
+PASS platform tenant API requires database admin RPC
+PASS platform admin audit log is written
+PASS shared role helper enforces active tenant status
+PASS independent module routes exist
+PASS workspace selection persists across module routes
+
+> anaira-graphics-portfolio@6.79.0 verify:growth-whatsapp-tenant
+> node scripts/verify-growth-whatsapp-tenant.cjs
+
+PASS tenant WhatsApp connection migration is present
+PASS WhatsApp credentials are encrypted using existing AES-GCM helper
+PASS connection setup verifies phone ID with Meta before persistence
+PASS connection status API never selects encrypted credentials for client response
+PASS incoming webhook maps Meta phone_number_id to one tenant
+PASS outbound WhatsApp API resolves credentials by organization
+PASS human inbox WhatsApp reply resolves tenant credentials
+PASS worker WhatsApp text and template sends resolve tenant credentials
+PASS free-form direct sends enforce consent and 24-hour window
+PASS channel UI includes tenant WhatsApp connection form
+PASS suspended tenants pause background jobs
+
+> anaira-graphics-portfolio@6.79.0 verify:growth-billing
+> node scripts/verify-growth-billing.cjs
+
+PASS plan catalogue and tenant subscriptions
+PASS monthly usage counters and append-only usage events
+PASS RLS and service-role-only grants
+PASS atomic quota RPC restricted to service role
+PASS subscription expiry fails closed
+PASS quota helper fails closed on RPC error
+PASS platform plan and subscription management API
+PASS tenant usage API is role-gated
+PASS quota enforced in app/api/growth/chat/route.ts
+PASS quota enforced in app/api/growth/lead/route.ts
+PASS quota enforced in app/api/growth/content/route.ts
+PASS quota enforced in app/api/growth/whatsapp/send/route.ts
+PASS quota enforced in app/api/growth/worker/route.ts
+PASS quota enforced in app/api/growth/whatsapp/webhook/route.ts
+14/14 billing checks passed.
+
+> anaira-graphics-portfolio@6.79.0 verify:growth-crm
+> node scripts/verify-growth-crm.cjs
+
+PASS tenant-scoped CRM activity table
+PASS CRM activity table is private to service role
+PASS activity API validates lead ownership and role
+PASS lead owner assignment validates workspace membership
+PASS CRM has pipeline filters and Customer 360 detail
+PASS CRM supports activity timeline and CSV export
+6/6 CRM checks passed.
+
+> anaira-graphics-portfolio@6.79.0 verify:growth-website-handoff
+> node scripts/verify-growth-website-handoff.cjs
+
+PASS website conversation lookup is scoped to organization and visitor token
+PASS public chat polling endpoint returns tenant-scoped messages
+PASS human takeover pauses website AI responses
+PASS human inbox can send a website reply into the conversation timeline
+PASS website widget keeps a stable visitor session ID
+PASS website widget polls for human team replies
+6/6 website handoff checks passed.
+
+> anaira-graphics-portfolio@6.79.0 verify:growth-email-inbox
+> node scripts/verify-growth-email-inbox.cjs
+
+PASS email reply is supported only for email channel
+PASS email recipient is validated before provider send
+PASS email replies require tenant-matched explicit CRM consent
+PASS email sending requires server-side Resend credentials
+PASS Resend provider response is checked before conversation history is updated
+PASS inbox UI exposes email channel filter
+6/6 email inbox checks passed.
+
+> anaira-graphics-portfolio@6.79.0 verify:growth-whatsapp-multi-number
+> node scripts/verify-growth-whatsapp-multi-number.cjs
+
+PASS migration removes tenant-wide unique constraint while preserving phone-number uniqueness
+PASS conversations persist receiving phone-number ID
+PASS connection API lists all tenant numbers
+PASS connection API upserts by globally unique Meta phone-number ID
+PASS disconnect API revokes one selected connection only
+PASS WhatsApp credentials resolver supports an explicit phone-number ID
+PASS credential resolver fails closed instead of guessing when multiple senders exist
+PASS inbound webhook resolves tenant by verified phone-number ID
+PASS conversations are isolated by receiving phone-number ID
+PASS human inbox replies use the conversation phone-number ID
+PASS manual CRM WhatsApp sends use the conversation phone-number ID
+PASS worker text and template sends use the originating conversation endpoint
+PASS workspace UI lists multiple connections and disconnects by connection ID
+PASS workspace UI explains multiple number setup
+14/14 multi-number checks passed.
+
+> anaira-graphics-portfolio@6.79.0 verify:growth-workflow-engine
+> node scripts/verify-growth-workflow-engine.cjs
+
+PASS immutable workflow version table
+PASS tenant scoped version policies
+PASS step-level run event table and index
+PASS workflow audit tables are write-restricted to service role
+PASS safe workflow simulation without external effects
+PASS workflow updates create new immutable versions with optimistic concurrency
+PASS legacy workflows get a baseline snapshot before first edit
+PASS restore creates a new version, not history overwrite
+PASS failed run retry and safe cancellation
+PASS worker records execution lifecycle and failures
+PASS UI provides simulation, version restore and run controls
+11/11 workflow-engine checks passed

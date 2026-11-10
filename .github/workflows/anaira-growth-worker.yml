@@ -1,0 +1,36 @@
+name: Anaira AI Growth Worker
+
+on:
+  schedule:
+    # GitHub Actions scheduled workflows support a 5-minute minimum interval.
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: anaira-growth-worker
+  cancel-in-progress: false
+
+jobs:
+  run-growth-worker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Validate required secrets
+        shell: bash
+        env:
+          BASE_URL: ${{ secrets.ANAIRA_GROWTH_SITE_URL }}
+          CRON_SECRET: ${{ secrets.ANAIRA_GROWTH_CRON_SECRET }}
+        run: |
+          test -n "$BASE_URL" || { echo "Missing ANAIRA_GROWTH_SITE_URL"; exit 1; }
+          test -n "$CRON_SECRET" || { echo "Missing ANAIRA_GROWTH_CRON_SECRET"; exit 1; }
+      - name: Process queued messages and workflow runs
+        shell: bash
+        env:
+          BASE_URL: ${{ secrets.ANAIRA_GROWTH_SITE_URL }}
+          CRON_SECRET: ${{ secrets.ANAIRA_GROWTH_CRON_SECRET }}
+        run: |
+          set -euo pipefail
+          BASE_URL="${BASE_URL%/}"
+          curl --fail-with-body --silent --show-error --max-time 75 \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            "${BASE_URL}/api/growth/worker"

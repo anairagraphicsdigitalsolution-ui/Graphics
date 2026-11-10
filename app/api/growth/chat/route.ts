@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { enforceGrowthRateLimit } from '@/lib/growth-rate-limit';
+import { consumeGrowthQuota, quotaErrorMessage } from '@/lib/growth-quota';
 
 export const runtime = 'nodejs';
 const json = (body: unknown, status = 200) => NextResponse.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
@@ -9,15 +10,29 @@ const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const openaiKey = process.env.OPENAI_API_KEY;
 const model = process.env.OPENAI_MODEL || 'gpt-4.1-mini';
 
+export async function GET(req: NextRequest) {
+  if (!supabaseUrl || !serviceKey) return json({ error: 'Chat service is not configured.' }, 503);
+  const slug = String(req.nextUrl.searchParams.get('slug') || '').trim().toLowerCase();
+  const conversationId = String(req.nextUrl.searchParams.get('conversationId') || '');
+  const visitorId = String(req.nextUrl.searchParams.get('visitorId') || '');
+  if (!slug || !conversationId || !visitorId) return json({ error: 'Workspace, conversation and visitor session are required.' }, 400);
+  const db = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
+  const { data: org } = await db.from('growth_organizations').select('id').eq('slug', slug).eq('status', 'active').maybeSingle();
+  if (!org) return json({ error: 'This AI assistant is not available.' }, 404);
+  const { data: conversation, error } = await db.from('growth_conversations').select('id,messages,status,needs_human,last_message_at').eq('id', conversationId).eq('organization_id', org.id).eq('visitor_id', visitorId).maybeSingle();
+  if (error || !conversation) return json({ error: 'Conversation not found for this visitor session.' }, 404);
+  return json({ messages: Array.isArray(conversation.messages) ? conversation.messages : [], status: conversation.status, needsHuman: !!conversation.needs_human, lastMessageAt: conversation.last_message_at || null });
+}
+
 export async function POST(req: NextRequest) {
-  if (!supabaseUrl || !serviceKey || !openaiKey) return json({ error: 'AI service is not configured. Please contact Anaira.' }, 503);
+  if (!supabaseUrl || !serviceKey) return json({ error: 'Chat service is not configured.' }, 503);
   try {
     const body = await req.json();
-    const slug = String(body.slug || 'anaira-graphics-digital-solution').slice(0, 100);
+    const slug = String(body.slug || '').trim().toLowerCase().slice(0, 100);
     const message = String(body.message || '').trim().slice(0, 3000);
     const conversationId = typeof body.conversationId === 'string' ? body.conversationId : null;
     const visitorId = String(body.visitorId || '').slice(0, 100);
-    if (!message) return json({ error: 'Message is required.' }, 400);
+    if (!/^[a-z0-9-]{2,100}$/.test(slug) || !message || !visitorId) return json({ error: 'Valid workspace, visitor session and message are required.' }, 400);
     const db = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
     const rate = await enforceGrowthRateLimit(db, req, 'website-chat', 20, 60);
     if (!rate.allowed) return json({ error: 'Too many messages. Please wait before trying again.', retryAfter: rate.retryAfter }, 429);
@@ -25,26 +40,39 @@ export async function POST(req: NextRequest) {
     if (orgError || !org) return json({ error: 'This AI assistant is not available.' }, 404);
     let conversation: any = null;
     if (conversationId) {
-      const { data } = await db.from('growth_conversations').select('id,messages').eq('id', conversationId).eq('organization_id', org.id).maybeSingle();
+      const { data, error } = await db.from('growth_conversations').select('id,messages,needs_human,status').eq('id', conversationId).eq('organization_id', org.id).eq('visitor_id', visitorId).maybeSingle();
+      if (error || !data) return json({ error: 'Conversation not found for this visitor session.' }, 404);
       conversation = data;
     }
     const history = Array.isArray(conversation?.messages) ? conversation.messages.slice(-12) : [];
-    const system = `You are the website sales assistant for ${org.name}. Use only this business knowledge and do not invent prices, guarantees, delivery dates or capabilities. If information is missing, say the Anaira team will confirm it. Be helpful, concise, professional and respond in the visitor's language. Collect requirements naturally. Never claim an enquiry is submitted unless the lead form is completed. Business knowledge: ${JSON.stringify(org.knowledge_base || {})}. Brand: ${JSON.stringify(org.brand_profile || {})}.`;
+    const now = new Date().toISOString();
+    if (conversation?.needs_human || conversation?.status === 'handed_off') {
+      const messages = [...history, { role: 'user', content: message, at: now }, { role: 'assistant', content: 'Your message has been shared with our team. A team member will reply here shortly.', at: now, source: 'human_handoff_ack' }].slice(-30);
+      const { error } = await db.from('growth_conversations').update({ messages, last_message_at: now, updated_at: now }).eq('id', conversation.id).eq('organization_id', org.id).eq('visitor_id', visitorId);
+      if (error) return json({ error: 'Could not update the conversation.' }, 500);
+      return json({ answer: 'Your message has been shared with our team. A team member will reply here shortly.', conversationId: conversation.id, humanHandoff: true });
+    }
+    if (!openaiKey) return json({ error: 'AI response service is not configured. Please contact the business team.' }, 503);
+    const quota = await consumeGrowthQuota(db, org.id, 'ai_messages', 1, undefined, { channel: 'website' });
+    if (!quota.allowed) return json({ error: quotaErrorMessage(quota), quota }, quota.reason === 'quota_exceeded' ? 402 : 503);
+    const system = `You are the website sales assistant for ${org.name}. Use only this business knowledge and do not invent prices, guarantees, delivery dates or capabilities. If information is missing, say the business team will confirm it. Be helpful, concise, professional and respond in the visitor's language. Collect requirements naturally. Never claim an enquiry is submitted unless the lead form is completed. Business knowledge: ${JSON.stringify(org.knowledge_base || {})}. Brand: ${JSON.stringify(org.brand_profile || {})}.`;
     const response = await fetch('https://api.openai.com/v1/chat/completions', { method: 'POST', headers: { Authorization: `Bearer ${openaiKey}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ model, temperature: 0.4, max_tokens: 500, messages: [{ role: 'system', content: system }, ...history.filter((m: any) => ['user','assistant'].includes(m.role)).map((m: any) => ({ role: m.role, content: String(m.content).slice(0, 3000) })), { role: 'user', content: message }] }) });
     if (!response.ok) return json({ error: 'AI response is temporarily unavailable. Please try again.' }, 502);
     const result = await response.json();
     const answer = String(result.choices?.[0]?.message?.content || 'Please share your requirement and our team will help.').slice(0, 4000);
-    const messages = [...history, { role: 'user', content: message, at: new Date().toISOString() }, { role: 'assistant', content: answer, at: new Date().toISOString() }].slice(-30);
+    const messages = [...history, { role: 'user', content: message, at: now }, { role: 'assistant', content: answer, at: now }].slice(-30);
     let id = conversation?.id;
-    if (id) await db.from('growth_conversations').update({ messages, updated_at: new Date().toISOString() }).eq('id', id).eq('organization_id', org.id);
-    else {
-      const { data: created, error } = await db.from('growth_conversations').insert({ organization_id: org.id, visitor_id: visitorId || null, channel: 'website', messages }).select('id').single();
+    if (id) {
+      const { error } = await db.from('growth_conversations').update({ messages, last_message_at: now, updated_at: now }).eq('id', id).eq('organization_id', org.id).eq('visitor_id', visitorId);
+      if (error) return json({ error: 'Could not update this conversation.' }, 500);
+    } else {
+      const { data: created, error } = await db.from('growth_conversations').insert({ organization_id: org.id, visitor_id: visitorId, channel: 'website', messages, last_message_at: now }).select('id').single();
       if (error) return json({ error: 'Could not save this conversation.' }, 500);
       id = created.id;
     }
     const usage = result.usage || {};
     const { estimateOpenAICost } = await import('@/lib/growth-cost');
     await db.from('growth_usage_logs').insert({ organization_id: org.id, provider: 'openai', model, operation: 'website_chat', input_units: usage.prompt_tokens || 0, output_units: usage.completion_tokens || 0, estimated_cost: estimateOpenAICost(model, usage.prompt_tokens || 0, usage.completion_tokens || 0) });
-    return json({ answer, conversationId: id });
+    return json({ answer, conversationId: id, humanHandoff: false });
   } catch { return json({ error: 'Unable to process the request.' }, 500); }
 }

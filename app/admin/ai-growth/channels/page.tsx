@@ -1,0 +1,1 @@
+import GrowthDashboard from '@/components/growth-dashboard';export const metadata={title:'Channels & Inbox | AI Growth Engine'};export default function Page(){return <GrowthDashboard initialTab="control" initialPanel="channels"/>;}
