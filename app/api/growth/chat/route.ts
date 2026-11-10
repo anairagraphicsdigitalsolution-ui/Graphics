@@ -7,8 +7,8 @@ export const runtime = 'nodejs';
 const json = (body: unknown, status = 200) => NextResponse.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const openaiKey = process.env.OPENAI_API_KEY;
-const model = process.env.OPENAI_MODEL || 'gpt-4.1-mini';
+const openaiKey = process.env.OPENAI_API_KEY?.trim();
+const model = process.env.OPENAI_MODEL?.trim() || 'gpt-4.1-mini';
 
 export async function GET(req: NextRequest) {
   if (!supabaseUrl || !serviceKey) return json({ error: 'Chat service is not configured.' }, 503);
@@ -57,7 +57,13 @@ export async function POST(req: NextRequest) {
     if (!quota.allowed) return json({ error: quotaErrorMessage(quota), quota }, quota.reason === 'quota_exceeded' ? 402 : 503);
     const system = `You are the website sales assistant for ${org.name}. Use only this business knowledge and do not invent prices, guarantees, delivery dates or capabilities. If information is missing, say the business team will confirm it. Be helpful, concise, professional and respond in the visitor's language. Collect requirements naturally. Never claim an enquiry is submitted unless the lead form is completed. Business knowledge: ${JSON.stringify(org.knowledge_base || {})}. Brand: ${JSON.stringify(org.brand_profile || {})}.`;
     const response = await fetch('https://api.openai.com/v1/chat/completions', { method: 'POST', headers: { Authorization: `Bearer ${openaiKey}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ model, temperature: 0.4, max_tokens: 500, messages: [{ role: 'system', content: system }, ...history.filter((m: any) => ['user','assistant'].includes(m.role)).map((m: any) => ({ role: m.role, content: String(m.content).slice(0, 3000) })), { role: 'user', content: message }] }) });
-    if (!response.ok) return json({ error: 'AI response is temporarily unavailable. Please try again.' }, 502);
+    if (!response.ok) {
+      const providerError = await response.json().catch(() => ({}));
+      const providerMessage = String(providerError?.error?.message || 'OpenAI request failed.').slice(0, 500);
+      const providerCode = String(providerError?.error?.code || providerError?.error?.type || 'openai_error').slice(0, 100);
+      console.error('[growth-chat] OpenAI request failed', { status: response.status, code: providerCode, message: providerMessage, model });
+      return json({ error: `OpenAI error (${response.status}): ${providerMessage}`, providerCode, model }, 502);
+    }
     const result = await response.json();
     const answer = String(result.choices?.[0]?.message?.content || 'Please share your requirement and our team will help.').slice(0, 4000);
     const messages = [...history, { role: 'user', content: message, at: now }, { role: 'assistant', content: answer, at: now }].slice(-30);
@@ -74,5 +80,9 @@ export async function POST(req: NextRequest) {
     const { estimateOpenAICost } = await import('@/lib/growth-cost');
     await db.from('growth_usage_logs').insert({ organization_id: org.id, provider: 'openai', model, operation: 'website_chat', input_units: usage.prompt_tokens || 0, output_units: usage.completion_tokens || 0, estimated_cost: estimateOpenAICost(model, usage.prompt_tokens || 0, usage.completion_tokens || 0) });
     return json({ answer, conversationId: id, humanHandoff: false });
-  } catch { return json({ error: 'Unable to process the request.' }, 500); }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown server error.';
+    console.error('[growth-chat] Request failed', message);
+    return json({ error: `Unable to process the request: ${message.slice(0, 300)}` }, 500);
+  }
 }
