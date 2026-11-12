@@ -11,10 +11,20 @@ export default async function AboutPage(){
  const milestones=Array.isArray(d.milestones)?d.milestones:defaults.milestones;
  const overlayColor=d.heroOverlayColor||"#041f16";
  const overlayStrength=Math.max(0,Math.min(100,Number(d.heroOverlayOpacity??82)))/100;
+ const heroImage=String(d.heroImage||defaults.heroImage).trim();
  return <SiteLayout><main className="about-premium">
-  <section className="about-premium-hero" style={{backgroundImage:`linear-gradient(90deg,${aboutOverlayRgba(overlayColor,overlayStrength)},${aboutOverlayRgba(overlayColor,overlayStrength*.78)} 48%,${aboutOverlayRgba(overlayColor,overlayStrength*.28)}),url("${d.heroImage}")`}}>
+  <section className="about-premium-hero">
+   <div className="about-premium-hero-image" aria-hidden="true" style={{backgroundImage:`url(${JSON.stringify(heroImage)})`}}/>
+   <div className="about-premium-hero-overlay" aria-hidden="true" style={{backgroundImage:`linear-gradient(90deg,${aboutOverlayRgba(overlayColor,overlayStrength)},${aboutOverlayRgba(overlayColor,overlayStrength*.78)} 48%,${aboutOverlayRgba(overlayColor,overlayStrength*.28)})`}}/>
    <div className="container about-premium-hero-inner"><span className="about-premium-kicker" style={{color:d.heroEyebrowColor||undefined}}>{d.eyebrow}</span><h1 style={{color:d.heroTitleColor||undefined}}>{d.title}</h1><p style={{color:d.heroDescriptionColor||undefined}}>{d.description}</p><div className="about-hero-bottom"><Link href="/contact">Let’s work together <span>↗</span></Link><small>CREATIVE · DIGITAL · TECHNOLOGY</small></div></div>
    <div className="about-hero-mark">A<span>.</span></div>
+  </section>
+  <section className="about-proof-strip" aria-label="Anaira at a glance">
+   <div className="container about-proof-grid">
+    <div><span>ESTABLISHED</span><strong>2013</strong><small>Rooted in Kullu, Himachal Pradesh</small></div>
+    <div><span>OUR DISCIPLINES</span><strong>Creative · Digital · Technology</strong><small>Connected capabilities under one roof</small></div>
+    <div><span>OUR APPROACH</span><strong>One connected partner</strong><small>From the first idea to practical execution</small></div>
+   </div>
   </section>
   <section className="about-premium-story section"><div className="container about-story-grid"><div className="about-story-visual"><img src={d.storyImage} alt="Anaira creative studio and design work"/><span>ANAIRA GRAPHICS & DIGITAL SOLUTION</span></div><div className="about-story-copy"><span className="about-premium-kicker">WHO WE ARE</span><h2>{d.storyTitle}</h2><p>{d.story}</p><p>{d.story2}</p><div className="about-founded"><strong>2013</strong><span>Established in Kullu, Himachal Pradesh<br/>Serving creative and technology needs</span></div></div></div></section>
   <section className="about-mission section"><div className="container about-mission-grid"><article><span>01 / OUR MISSION</span><h2>{d.missionTitle}</h2><p>{d.mission}</p></article><article><span>02 / OUR VISION</span><h2>{d.visionTitle}</h2><p>{d.vision}</p></article></div></section>
