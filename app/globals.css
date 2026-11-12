@@ -2487,3 +2487,92 @@ input,select,textarea,button{max-width:100%}
 .growth-website-status{font-size:11px;color:#8b6b2e;text-transform:capitalize}
 .growth-website-status.is-verified{color:#237044}.growth-website-status.is-failed{color:#a33e32}
 @media(max-width:700px){.growth-website-row{align-items:flex-start;flex-direction:column}.growth-website-row .growth-inline-controls{width:100%}.growth-website-row .growth-inline-controls button{flex:1}}
+
+
+/* v6.86.5 — Anaira AI Growth Engine premium design system
+   Scoped to Growth Engine surfaces; portfolio and public website styles remain untouched. */
+.growth-admin,.growth-integrations,.growth-platform-billing,.growth-report-page,.growth-sales-report{
+  --growth-ink:#153b2c;--growth-muted:#68776d;--growth-line:#e7dfcf;
+  --growth-paper:#fffdf8;--growth-soft:#f5f1e7;--growth-gold:#b28b49;
+  color:var(--growth-ink);max-width:1560px;margin-inline:auto;
+}
+.growth-admin{padding:clamp(16px,2vw,28px);min-width:0}
+.growth-admin h1,.growth-admin h2,.growth-admin h3,
+.growth-integrations h1,.growth-integrations h2,.growth-integrations h3{
+  color:var(--growth-ink);letter-spacing:-.025em
+}
+.growth-admin h1{font-size:clamp(28px,3vw,38px);line-height:1.12;margin:0 0 8px}
+.growth-admin h2{font-size:clamp(21px,2vw,27px);line-height:1.2}
+.growth-admin p{color:var(--growth-muted);line-height:1.6}
+.growth-module-nav,.growth-primary-nav{
+  display:flex;align-items:center;gap:5px;padding:8px;margin:14px 0 18px;
+  border:1px solid var(--growth-line);border-radius:15px;background:rgba(255,253,248,.94);
+  box-shadow:0 8px 24px rgba(30,48,35,.045);overflow-x:auto;overscroll-behavior-inline:contain;
+  scrollbar-width:thin;scrollbar-color:#c9b98f transparent;white-space:nowrap
+}
+.growth-module-nav a,.growth-primary-nav a{
+  flex:0 0 auto;padding:10px 13px;border-radius:10px;font-size:11px;font-weight:700;
+  color:#5d6e62;text-decoration:none;transition:background .18s,color .18s,transform .18s
+}
+.growth-module-nav a:hover,.growth-primary-nav a:hover{background:#f0eadb;color:#173d2c}
+.growth-module-nav a.active,.growth-primary-nav a.active{
+  background:#153b2c;color:#fffdf8;box-shadow:0 4px 12px rgba(21,59,44,.16)
+}
+.growth-admin .growth-panel,.growth-admin .growth-add-site,.growth-admin .growth-create,
+.growth-admin .growth-sales-table-card,.growth-admin .growth-inbox-list,
+.growth-admin .growth-inbox-messages{
+  min-width:0;background:var(--growth-paper);border:1px solid var(--growth-line);
+  border-radius:16px;box-shadow:0 8px 25px rgba(35,47,36,.035);padding:clamp(16px,1.7vw,22px)
+}
+.growth-admin .growth-stats,.growth-admin .growth-sales-kpis{
+  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px
+}
+.growth-admin .growth-stats>* ,.growth-admin .growth-sales-kpis>*{
+  min-width:0;border:1px solid var(--growth-line);border-radius:14px;
+  background:linear-gradient(145deg,#fffdf8,#f5f1e7);padding:16px
+}
+.growth-admin .growth-columns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start}
+.growth-admin .growth-row{min-width:0;border-bottom:1px solid #eee8dc;padding:13px 0;gap:14px}
+.growth-admin .growth-row:last-child{border-bottom:0}
+.growth-admin input,.growth-admin select,.growth-admin textarea,
+.growth-integrations input,.growth-integrations select{
+  min-width:0;max-width:100%;border:1px solid #dcd3c1;border-radius:10px;
+  background:#fffefa;color:#193c2d;padding:11px 13px;outline:none;
+  transition:border-color .18s,box-shadow .18s
+}
+.growth-admin input:focus,.growth-admin select:focus,.growth-admin textarea:focus,
+.growth-integrations input:focus,.growth-integrations select:focus{
+  border-color:#b28b49;box-shadow:0 0 0 3px rgba(178,139,73,.14)
+}
+.growth-admin button,.growth-integrations button{transition:transform .16s,box-shadow .16s,background .16s}
+.growth-admin button:hover,.growth-integrations button:hover{transform:translateY(-1px)}
+.growth-admin .btn,.growth-integrations .btn{
+  border-radius:10px;font-weight:750;letter-spacing:.015em;padding:10px 15px
+}
+.growth-admin .growth-panel-head{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:16px}
+.growth-admin .growth-inline-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.growth-admin .growth-empty{padding:22px;border:1px dashed #d9cfbc;border-radius:12px;background:#faf7ef;color:#758176}
+.growth-integrations{padding:clamp(18px,2vw,30px)}
+.growth-integrations .growth-integration-list,.growth-integrations .growth-integration-editor{
+  border-radius:16px;box-shadow:0 8px 25px rgba(35,47,36,.04)
+}
+.growth-integrations .growth-integration-editor{padding:clamp(18px,2vw,26px)}
+.growth-integrations .growth-integration-fields{padding:16px 0}
+.growth-integrations .growth-integration-actions{position:sticky;bottom:0;padding:12px 0 4px;background:linear-gradient(180deg,rgba(255,253,248,0),#fffdf8 25%);z-index:2}
+.growth-website-row{border-radius:12px;padding:14px 12px;margin:5px 0}
+.growth-website-row:hover{background:#faf7ef}
+.growth-website-status{font-weight:700}
+@media(max-width:900px){
+ .growth-admin .growth-stats,.growth-admin .growth-sales-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .growth-admin .growth-columns{grid-template-columns:1fr}
+}
+@media(max-width:600px){
+ .growth-admin{padding:14px 10px 32px}
+ .growth-admin .growth-stats,.growth-admin .growth-sales-kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+ .growth-admin .growth-stats>* ,.growth-admin .growth-sales-kpis>*{padding:12px}
+ .growth-admin .growth-row{align-items:flex-start;flex-direction:column}
+ .growth-admin .growth-inline-controls{width:100%}
+ .growth-admin .growth-inline-controls>*{min-width:0;flex:1}
+ .growth-primary-nav{margin:10px 0 14px}
+ .growth-primary-nav a{padding:9px 11px}
+}
