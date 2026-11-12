@@ -2,13 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { enforceGrowthRateLimit } from '@/lib/growth-rate-limit';
 import { consumeGrowthQuota, quotaErrorMessage } from '@/lib/growth-quota';
+import { getWorkspaceIntegration } from '@/lib/growth-integrations';
 
 export const runtime = 'nodejs';
 const json = (body: unknown, status = 200) => NextResponse.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const openaiKey = process.env.OPENAI_API_KEY?.trim();
-const model = process.env.OPENAI_MODEL?.trim() || 'gpt-4.1-mini';
 
 export async function GET(req: NextRequest) {
   if (!supabaseUrl || !serviceKey) return json({ error: 'Chat service is not configured.' }, 503);
@@ -52,7 +51,10 @@ export async function POST(req: NextRequest) {
       if (error) return json({ error: 'Could not update the conversation.' }, 500);
       return json({ answer: 'Your message has been shared with our team. A team member will reply here shortly.', conversationId: conversation.id, humanHandoff: true });
     }
-    if (!openaiKey) return json({ error: 'AI response service is not configured. Please contact the business team.' }, 503);
+    const openai = await getWorkspaceIntegration(db, org.id, 'openai');
+    const openaiKey = String(openai.credentials.api_key || process.env.OPENAI_API_KEY || '').trim();
+    const model = String(openai.settings.model || process.env.OPENAI_MODEL || 'gpt-4.1-mini').trim();
+    if (!openaiKey) return json({ error: 'AI response service is not configured. Add OpenAI credentials in workspace Integrations.' }, 503);
     const quota = await consumeGrowthQuota(db, org.id, 'ai_messages', 1, undefined, { channel: 'website' });
     if (!quota.allowed) return json({ error: quotaErrorMessage(quota), quota }, quota.reason === 'quota_exceeded' ? 402 : 503);
     const system = `You are the website sales assistant for ${org.name}. Use only this business knowledge and do not invent prices, guarantees, delivery dates or capabilities. If information is missing, say the business team will confirm it. Be helpful, concise, professional and respond in the visitor's language. Collect requirements naturally. Never claim an enquiry is submitted unless the lead form is completed. Business knowledge: ${JSON.stringify(org.knowledge_base || {})}. Brand: ${JSON.stringify(org.brand_profile || {})}.`;

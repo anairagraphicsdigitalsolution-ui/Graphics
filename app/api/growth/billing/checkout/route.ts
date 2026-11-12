@@ -1,16 +1,17 @@
 import { NextRequest } from 'next/server';
 import { randomUUID } from 'node:crypto';
 import { apiJson, growthContext, requireGrowthRole } from '@/lib/growth-server';
+import { getWorkspaceIntegration } from '@/lib/growth-integrations';
 export const runtime='nodejs';
 const API_VERSION='2025-01-01';
-function cashfreeConfig(){const appId=process.env.CASHFREE_APP_ID,secret=process.env.CASHFREE_SECRET_KEY,env=(process.env.CASHFREE_ENV||'sandbox').toLowerCase();if(!appId||!secret)return null;return {appId,secret,base:env==='production'?'https://api.cashfree.com/pg':'https://sandbox.cashfree.com/pg'};}
+function cashfreeConfig(appId?:string,secret?:string,environment?:string){const id=appId||process.env.CASHFREE_APP_ID,key=secret||process.env.CASHFREE_SECRET_KEY,env=(environment||process.env.CASHFREE_ENV||'sandbox').toLowerCase();if(!id||!key)return null;return {appId:id,secret:key,environment:env,base:env==='production'?'https://api.cashfree.com/pg':'https://sandbox.cashfree.com/pg'};}
 export async function POST(req:NextRequest){
  const c=await growthContext(req);if('response'in c)return c.response;
  try{
   const body=await req.json(),orgId=String(body.organizationId||''),planId=String(body.planId||''),interval=String(body.billingInterval||'month');
   if(!orgId||!planId||!['month','year'].includes(interval))return apiJson({error:'Organization, plan and billing interval are required.'},400);
   if(!await requireGrowthRole(c.db,c.userId,orgId,['owner']))return apiJson({error:'Only the workspace owner can purchase or change a subscription.'},403);
-  const config=cashfreeConfig();if(!config)return apiJson({error:'Cashfree is not configured. Add CASHFREE_APP_ID and CASHFREE_SECRET_KEY to server environment variables.'},503);
+  const cashfree=await getWorkspaceIntegration(c.db,orgId,'cashfree');const config=cashfreeConfig(cashfree.credentials.client_id,cashfree.credentials.client_secret,cashfree.settings.environment);if(!config)return apiJson({error:'Cashfree is not configured. Add Cashfree Client ID and Client Secret under Integrations or configure CASHFREE_APP_ID and CASHFREE_SECRET_KEY on the server.'},503);
   const [{data:plan,error:planError},{data:userResult,error:userError}]=await Promise.all([c.db.from('growth_plans').select('id,name,currency,monthly_price_minor,yearly_price_minor,is_active').eq('id',planId).eq('is_active',true).maybeSingle(),c.db.auth.admin.getUserById(c.userId)]);
   if(planError||!plan)return apiJson({error:'Active plan not found.'},404);
   if(userError||!userResult?.user?.email)return apiJson({error:'A verified account email is required for checkout.'},400);
@@ -25,6 +26,6 @@ export async function POST(req:NextRequest){
   const result=await cashfreeResponse.json().catch(()=>({}));
   if(!cashfreeResponse.ok||!result.payment_session_id){await c.db.from('growth_payment_transactions').update({status:'failed',provider_payload:{error:result}}).eq('provider_order_id',orderId);return apiJson({error:'Cashfree could not create the payment session.',providerStatus:cashfreeResponse.status},502);}
   await c.db.from('growth_payment_transactions').update({status:'pending',payment_session_id:result.payment_session_id,provider_payload:{cf_order_id:result.cf_order_id||null}}).eq('provider_order_id',orderId);
-  return apiJson({provider:'cashfree',environment:process.env.CASHFREE_ENV||'sandbox',orderId,paymentSessionId:result.payment_session_id,amountMinor,currency:'INR',apiVersion:API_VERSION});
+  return apiJson({provider:'cashfree',environment:config.environment,orderId,paymentSessionId:result.payment_session_id,amountMinor,currency:'INR',apiVersion:API_VERSION});
  }catch(e){return apiJson({error:e instanceof Error?e.message:'Unable to start Cashfree checkout.'},400);}
 }

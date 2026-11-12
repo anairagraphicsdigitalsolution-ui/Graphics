@@ -1,4 +1,5 @@
 import { decryptSecret } from '@/lib/growth-crypto';
+import { getWorkspaceIntegration } from '@/lib/growth-integrations';
 
 export type WhatsAppCredentials = { access_token: string; phone_number_id: string; graph_api_version: string; waba_id?: string | null };
 
@@ -31,5 +32,9 @@ export async function getWhatsAppCredentials(db: any, organizationId: string, ph
       graph_api_version: process.env.META_GRAPH_API_VERSION || 'v22.0',
     };
   }
+  // Central Integration Vault fallback. Explicit phone-number selection is required when configured.
+  const central=await getWorkspaceIntegration(db,organizationId,'whatsapp');
+  const centralPhone=String(central.settings.phone_number_id||'');
+  if(central.credentials.access_token&&centralPhone&&(!phoneNumberId||phoneNumberId===centralPhone))return {access_token:central.credentials.access_token,phone_number_id:centralPhone,waba_id:central.settings.waba_id||null,graph_api_version:central.settings.graph_api_version||process.env.META_GRAPH_API_VERSION||'v22.0'};
   return null;
 }

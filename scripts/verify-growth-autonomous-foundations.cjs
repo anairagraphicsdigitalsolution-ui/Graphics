@@ -1,0 +1,6 @@
+const fs=require('fs');const checks=[
+ ['Discovery requires owner/manager and workspace', 'app/api/growth/prospect-discovery/route.ts', ['requireGrowthRole','organization_id','GOOGLE_CSE_API_KEY','GOOGLE_CSE_CX','consent_to_contact:false','duplicates']],
+ ['Voice calls require explicit consent and opt-out check','app/api/growth/voice-calls/route.ts',['consent_to_contact','contact_opted_out_at','TWILIO_ACCOUNT_SID','TWILIO_AUTH_TOKEN','growth_voice_call_attempts','E.164','APP_BASE_URL']],
+ ['Campaign optimization reads live Meta insights','app/api/growth/campaign-optimization/route.ts',['ads_read','/insights','time_range','startPrevious','placementBreakdown','cost_per_action_type','automaticChangesApplied:false']],
+ ['Migration creates isolated call audit records','supabase/migrations/20261112120000_growth_autonomous_execution_foundations_v6849.sql',['growth_voice_call_attempts','organization_id','private.is_growth_member','consent_verified_at']],
+];let failed=0;for(const [name,file,needles] of checks){const s=fs.readFileSync(file,'utf8');const missing=needles.filter(x=>!s.includes(x));if(missing.length){failed++;console.error('FAIL',name,missing.join(', '));}else console.log('PASS',name);}if(failed)process.exit(1);console.log(`Autonomous foundation checks: ${checks.length-failed}/${checks.length} passed.`);

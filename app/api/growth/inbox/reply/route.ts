@@ -1,7 +1,7 @@
 import { getWhatsAppCredentials } from '@/lib/growth-whatsapp';
 import {NextRequest,NextResponse} from 'next/server';
 import {growthContext,requireGrowthRole} from '@/lib/growth-server';
-import {decryptSecret} from '@/lib/growth-crypto';
+import {getWorkspaceIntegration,getWorkspaceAccessToken} from '@/lib/growth-integrations';
 export const runtime='nodejs';
 const json=(b:unknown,s=200)=>NextResponse.json(b,{status:s,headers:{'Cache-Control':'no-store'}});
 export async function POST(req:NextRequest){
@@ -25,15 +25,16 @@ export async function POST(req:NextRequest){
    const lastInbound=[...(Array.isArray(conv.messages)?conv.messages:[])].reverse().find((m:any)=>m.role==='user'&&m.recipient_account_id);
    const {data:target}=await ctx.db.from('growth_social_accounts').select('external_account_id,encrypted_credentials,connection_status').eq('organization_id',org).eq('platform',platform).eq('connection_status','connected').eq('external_account_id',lastInbound?.recipient_account_id||'').maybeSingle();
    if(!target||!version)return json({error:'Connected Meta Page/account or META_GRAPH_API_VERSION is missing.'},503);
-   const credentials=decryptSecret(target.encrypted_credentials);
-   if(!credentials?.access_token)return json({error:'Meta access token unavailable.'},503);
-   response=await fetch(`https://graph.facebook.com/${version}/${target.external_account_id}/messages`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${credentials.access_token}`},body:JSON.stringify({recipient:{id:conv.visitor_id},message:{text:message},messaging_type:'RESPONSE'}),cache:'no-store'});
+   const accessToken=await getWorkspaceAccessToken(ctx.db,org,platform==='instagram'?'instagram':'meta',target.external_account_id);
+   response=await fetch(`https://graph.facebook.com/${version}/${target.external_account_id}/messages`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${accessToken}`},body:JSON.stringify({recipient:{id:conv.visitor_id},message:{text:message},messaging_type:'RESPONSE'}),cache:'no-store'});
   }else if(channel==='email'){
    const recipient=String(conv.visitor_id||'').trim().toLowerCase();
    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient))return json({error:'This email conversation has no valid customer email address.'},400);
    const {data:consentedLead}=await ctx.db.from('growth_leads').select('id,email,consent_to_contact').eq('organization_id',org).ilike('email',recipient).eq('consent_to_contact',true).limit(1).maybeSingle();
    if(!consentedLead)return json({error:'Email reply blocked: no matching CRM lead with explicit contact consent exists for this workspace.'},403);
-   const resendKey=process.env.RESEND_API_KEY,from=process.env.RESEND_FROM_EMAIL;
+   const resend=await getWorkspaceIntegration(ctx.db,org,'resend');
+   const resendKey=String(resend.credentials.api_key||process.env.RESEND_API_KEY||'').trim();
+   const from=String(resend.settings.from_email||process.env.RESEND_FROM_EMAIL||'').trim();
    if(!resendKey||!from)return json({error:'Resend email credentials (RESEND_API_KEY and RESEND_FROM_EMAIL) are not configured.'},503);
    response=await fetch('https://api.resend.com/emails',{method:'POST',headers:{Authorization:`Bearer ${resendKey}`,'Content-Type':'application/json'},body:JSON.stringify({from,to:[recipient],subject:'Re: Your enquiry',text:message,tags:[{name:'anaira_org',value:org.slice(0,256)},{name:'anaira_conversation',value:id.slice(0,256)}]}),cache:'no-store'});
   }else if(channel==='whatsapp'){

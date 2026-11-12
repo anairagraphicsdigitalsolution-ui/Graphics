@@ -2,14 +2,13 @@ import { NextRequest } from 'next/server';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import { apiJson } from '@/lib/growth-server';
+import { getWorkspaceIntegration } from '@/lib/growth-integrations';
 export const runtime='nodejs';
 const API_VERSION='2025-01-01';
 function safeEqual(a:string,b:string){const aa=Buffer.from(a),bb=Buffer.from(b);return aa.length===bb.length&&timingSafeEqual(aa,bb);}
 export async function POST(req:NextRequest){
- const secret=process.env.CASHFREE_SECRET_KEY,appId=process.env.CASHFREE_APP_ID;if(!secret||!appId)return apiJson({error:'Cashfree webhook is not configured.'},503);
  const raw=await req.text(),signature=req.headers.get('x-webhook-signature')||'',timestamp=req.headers.get('x-webhook-timestamp')||'';
  if(!signature||!timestamp||!/^\d{10,}$/.test(timestamp))return apiJson({error:'Missing Cashfree signature headers.'},401);
- const expected=createHmac('sha256',secret).update(timestamp+raw).digest('base64');if(!safeEqual(expected,signature))return apiJson({error:'Invalid Cashfree webhook signature.'},401);
  let event:any;try{event=JSON.parse(raw);}catch{return apiJson({error:'Invalid webhook JSON.'},400);}
  const url=process.env.NEXT_PUBLIC_SUPABASE_URL,service=process.env.SUPABASE_SERVICE_ROLE_KEY;if(!url||!service)return apiJson({error:'Database service is not configured.'},503);
  const db=createClient(url,service,{auth:{persistSession:false,autoRefreshToken:false}});
@@ -18,7 +17,9 @@ export async function POST(req:NextRequest){
  const eventKey=`${eventType}:${paymentId||orderId}:${timestamp}`;
  const {data:payment,error:lookupError}=await db.from('growth_payment_transactions').select('*').eq('provider_order_id',orderId).maybeSingle();
  if(lookupError)return apiJson({error:'Payment ledger lookup failed.'},503);if(!payment)return apiJson({received:true,ignored:true});
- const env=(process.env.CASHFREE_ENV||'sandbox').toLowerCase(),base=env==='production'?'https://api.cashfree.com/pg':'https://sandbox.cashfree.com/pg';
+ const cashfree=await getWorkspaceIntegration(db,payment.organization_id,'cashfree');const secret=cashfree.credentials.client_secret||process.env.CASHFREE_SECRET_KEY,appId=cashfree.credentials.client_id||process.env.CASHFREE_APP_ID;if(!secret||!appId)return apiJson({error:'Cashfree webhook credentials are not configured for this workspace.'},503);
+ const expected=createHmac('sha256',secret).update(timestamp+raw).digest('base64');if(!safeEqual(expected,signature))return apiJson({error:'Invalid Cashfree webhook signature.'},401);
+ const env=(cashfree.settings.environment||process.env.CASHFREE_ENV||'sandbox').toLowerCase(),base=env==='production'?'https://api.cashfree.com/pg':'https://sandbox.cashfree.com/pg';
  // Never activate a subscription from an unsigned/unverified browser redirect or webhook payload alone.
  const verify=await fetch(`${base}/orders/${encodeURIComponent(orderId)}/payments`,{headers:{'Accept':'application/json','x-client-id':appId,'x-client-secret':secret,'x-api-version':API_VERSION},cache:'no-store'});
  const payments=await verify.json().catch(()=>[]);if(!verify.ok||!Array.isArray(payments))return apiJson({error:'Cashfree payment verification is temporarily unavailable.'},503);

@@ -1,6 +1,6 @@
 {
   "name": "anaira-graphics-portfolio",
-  "version": "6.84.7",
+  "version": "6.86.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -10,7 +10,7 @@
     "verify:syntax": "node scripts/verify-syntax.cjs",
     "verify:growth-worker": "node scripts/verify-growth-worker.cjs",
     "verify:growth-scheduler": "node scripts/verify-growth-scheduler.cjs",
-    "verify:all": "npm run verify:syntax && npm run verify:growth-worker && npm run verify:growth-scheduler && npm run verify:growth-recovery && npm run verify:growth-security && npm run verify:growth-release && npm run verify:growth-tenant-lead && npm run verify:growth-navigation && npm run verify:growth-team && npm run verify:growth-whatsapp-tenant && npm run verify:growth-billing && npm run verify:growth-cashfree && npm run verify:growth-crm && npm run verify:growth-crm-attachments && npm run verify:growth-crm-import && npm run verify:growth-website-handoff && npm run verify:growth-email-inbox && npm run verify:growth-whatsapp-multi-number && npm run verify:growth-workflow-engine && npm run verify:growth-builder-dnd && npm run verify:growth-crm-reports && npm run verify:growth-email-lifecycle && npm run verify:growth-email-unsubscribe && npm run verify:growth-workflow-dlq && npm run verify:growth-feature-entitlements && npm run verify:growth-expanded-entitlements && npm run verify:growth-crm-bulk && npm run verify:client-directives && npm run verify:growth-crm-bulk-ui && npm run verify:ui-responsive && npm run verify:growth-manual-billing && npm run verify:growth-navigation-performance && npm run verify:admin-role-billing-website && npm run verify:contact-hero && npm run verify:website-page-hero && npm run verify:growth-credit-ledger && npm run verify:growth-sales-billing-ui && npm run verify:growth-billing-types && npm run verify:growth-lead-bulk-types && npm run verify:gallery && npm run verify:growth-chat-diagnostics && npm run verify:external-assistant && npm run verify:growth-intelligence && npm run verify:growth-operations && npm run verify:growth-call-permissions && npm run verify:about-page",
+    "verify:all": "npm run verify:syntax && npm run verify:growth-worker && npm run verify:growth-scheduler && npm run verify:growth-recovery && npm run verify:growth-security && npm run verify:growth-release && npm run verify:growth-tenant-lead && npm run verify:growth-navigation && npm run verify:growth-team && npm run verify:growth-whatsapp-tenant && npm run verify:growth-billing && npm run verify:growth-cashfree && npm run verify:growth-crm && npm run verify:growth-crm-attachments && npm run verify:growth-crm-import && npm run verify:growth-website-handoff && npm run verify:growth-email-inbox && npm run verify:growth-whatsapp-multi-number && npm run verify:growth-workflow-engine && npm run verify:growth-builder-dnd && npm run verify:growth-crm-reports && npm run verify:growth-email-lifecycle && npm run verify:growth-email-unsubscribe && npm run verify:growth-workflow-dlq && npm run verify:growth-feature-entitlements && npm run verify:growth-expanded-entitlements && npm run verify:growth-crm-bulk && npm run verify:client-directives && npm run verify:growth-crm-bulk-ui && npm run verify:ui-responsive && npm run verify:growth-manual-billing && npm run verify:growth-navigation-performance && npm run verify:admin-role-billing-website && npm run verify:contact-hero && npm run verify:website-page-hero && npm run verify:growth-credit-ledger && npm run verify:growth-sales-billing-ui && npm run verify:growth-billing-types && npm run verify:growth-lead-bulk-types && npm run verify:gallery && npm run verify:growth-chat-diagnostics && npm run verify:external-assistant && npm run verify:growth-intelligence && npm run verify:growth-operations && npm run verify:growth-call-permissions && npm run verify:about-page && npm run verify:growth-readiness-audit && npm run verify:growth-autonomous-foundations && npm run verify:growth-phase31 && npm run verify:growth-autonomous-schedules && npm run verify:growth-integrations",
     "verify:growth-recovery": "node scripts/verify-growth-recovery.cjs",
     "verify:growth-security": "node scripts/verify-growth-security.cjs",
     "smoke:growth-public": "node scripts/smoke-growth-public.cjs",
@@ -54,19 +54,26 @@
     "verify:growth-intelligence": "node scripts/verify-growth-intelligence.cjs",
     "verify:growth-operations": "node scripts/verify-growth-operations.cjs",
     "verify:growth-call-permissions": "node scripts/verify-growth-call-permissions.cjs",
-    "verify:about-page": "node scripts/verify-about-page.cjs"
+    "verify:about-page": "node scripts/verify-about-page.cjs",
+    "verify:growth-readiness-audit": "node scripts/verify-growth-readiness-audit.cjs",
+    "verify:growth-autonomous-foundations": "node scripts/verify-growth-autonomous-foundations.cjs",
+    "verify:growth-phase31": "node scripts/verify-growth-phase31-engines.cjs",
+    "verify:growth-autonomous-schedules": "node scripts/verify-growth-autonomous-schedules.cjs",
+    "verify:growth-integrations": "node scripts/verify-growth-integrations.cjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",
     "lucide-react": "^0.468.0",
     "next": "15.5.28",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "nodemailer": "^7.0.5"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "@types/nodemailer": "^6.4.17"
   }
 }

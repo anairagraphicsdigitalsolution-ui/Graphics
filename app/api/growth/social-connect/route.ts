@@ -2,6 +2,7 @@ import { randomBytes } from 'crypto';
 import { NextRequest } from 'next/server';
 import { apiJson, growthContext, requireGrowthRole, requireGrowthFeature } from '@/lib/growth-server';
 import { hashState } from '@/lib/growth-crypto';
+import { getWorkspaceIntegration } from '@/lib/growth-integrations';
 
 export const runtime = 'nodejs';
 
@@ -16,9 +17,10 @@ export async function POST(req: NextRequest) {
   if (!await requireGrowthFeature(context.db, context.userId, organizationId, 'social_channels')) return apiJson({ error: 'Social channels are not included in this workspace plan.' }, 402);
 
   const state = randomBytes(32).toString('hex');
-  const redirectUri = provider === 'linkedin' ? process.env.LINKEDIN_REDIRECT_URI : process.env.GOOGLE_REDIRECT_URI;
-  const clientId = provider === 'linkedin' ? process.env.LINKEDIN_CLIENT_ID : process.env.GOOGLE_CLIENT_ID;
-  if (!redirectUri || !clientId) return apiJson({ error: `${provider === 'linkedin' ? 'LINKEDIN' : 'GOOGLE'}_CLIENT_ID and redirect URI are required.` }, 503);
+  const providerConfig = await getWorkspaceIntegration(context.db, organizationId, provider === 'linkedin' ? 'linkedin' : 'youtube');
+  const redirectUri = providerConfig.settings.redirect_uri || (provider === 'linkedin' ? process.env.LINKEDIN_REDIRECT_URI : process.env.GOOGLE_REDIRECT_URI);
+  const clientId = providerConfig.credentials.client_id || (provider === 'linkedin' ? process.env.LINKEDIN_CLIENT_ID : process.env.GOOGLE_CLIENT_ID);
+  if (!redirectUri || !clientId) return apiJson({ error: `${provider === 'linkedin' ? 'LinkedIn' : 'Google'} Client ID and OAuth Redirect URL are required in Integrations or server environment.` }, 503);
   const { error } = await context.db.from('growth_oauth_states').insert({ organization_id: organizationId, user_id: context.userId, provider, state_hash: hashState(state), expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString() });
   if (error) return apiJson({ error: 'Could not start secure OAuth session.' }, 500);
 
@@ -29,7 +31,7 @@ export async function POST(req: NextRequest) {
   auth.searchParams.set('redirect_uri', redirectUri);
   auth.searchParams.set('response_type', 'code');
   auth.searchParams.set('state', state);
-  if (provider === 'linkedin') auth.searchParams.set('scope', 'openid profile w_member_social');
+  if (provider === 'linkedin') auth.searchParams.set('scope', 'openid profile w_member_social offline_access');
   else {
     auth.searchParams.set('scope', 'openid email profile https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/yt-analytics.readonly');
     auth.searchParams.set('access_type', 'offline');

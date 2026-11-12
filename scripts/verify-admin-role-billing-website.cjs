@@ -8,7 +8,7 @@ const studio=fs.readFileSync('app/admin/page.tsx','utf8');
 const checks=[
  ['navigation resolves platform-admin and workspace-member roles',nav.includes("from '@/lib/supabase'")&&nav.includes("admin_users")&&nav.includes("growth_members")],
  ['platform-only links are separated from workspace navigation',nav.includes('platformItems')&&nav.includes('...(isPlatformAdmin?platformItems:[])')],
- ['workspace Plan & Usage is shown only to workspace members',nav.includes("isWorkspaceMember?workspaceItems:[]")&&nav.includes("['billing','Plan & Usage'")],
+ ['workspace Plan & Usage is shown only to workspace members',nav.includes("isWorkspaceMember?visibleWorkspaceItems:[]")&&nav.includes("['billing','Plan & Usage'")],
  ['platform billing API requires platform allow-list',billing.includes("if(platformView){if(!await platformAdmin(c.db,c.userId))")],
  ['workspace billing API requires owner or manager role',billing.includes("requireGrowthRole(c.db,c.userId,orgId,['owner','manager'])")],
  ['workspace billing UI is tenant scoped',workspace.includes("filter(x=>['owner','manager'].includes(x.role))")&&workspace.includes('organizationId=${encodeURIComponent(id)}')],

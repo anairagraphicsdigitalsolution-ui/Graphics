@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { createClient } from '@supabase/supabase-js';
-import { decryptSecret } from '@/lib/growth-crypto';
 import { runLeadCreatedRules } from '@/lib/growth-automation';
 import { estimateOpenAICost } from '@/lib/growth-cost';
 import { consumeGrowthQuota } from '@/lib/growth-quota';
+import { getWorkspaceIntegration, getWorkspaceAccessToken } from '@/lib/growth-integrations';
 
 export const runtime = 'nodejs';
 const json = (body: unknown, status = 200) => NextResponse.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
@@ -29,8 +29,7 @@ export async function POST(req: NextRequest) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const version = process.env.META_GRAPH_API_VERSION;
-  const openai = process.env.OPENAI_API_KEY;
-  if (!secret || !url || !serviceKey || !version || !openai) return json({ error: 'Meta messaging webhook is not configured.' }, 503);
+  if (!secret || !url || !serviceKey || !version) return json({ error: 'Meta messaging webhook is not configured.' }, 503);
   const raw = await req.text();
   if (!validSignature(raw, req.headers.get('x-hub-signature-256') || '', secret)) return json({ error: 'Invalid webhook signature.' }, 401);
   let payload: any;
@@ -67,9 +66,11 @@ export async function POST(req: NextRequest) {
         if (!claimed) { ignored++; continue; }
         const { data: org } = await db.from('growth_organizations').select('id,name,knowledge_base,brand_profile').eq('id', account.organization_id).eq('status', 'active').maybeSingle();
         if (!org) throw new Error('Growth organization is inactive or missing.');
-        const creds = decryptSecret(account.encrypted_credentials);
-        const accessToken = String(creds.access_token || '');
-        if (!accessToken) throw new Error('Connected Meta account has no access token.');
+        const aiIntegration = await getWorkspaceIntegration(db, org.id, 'openai');
+        const openai = String(aiIntegration.credentials.api_key || process.env.OPENAI_API_KEY || '').trim();
+        const aiModel = String(aiIntegration.settings.model || process.env.OPENAI_MODEL || 'gpt-4.1-mini').trim();
+        if (!openai) throw new Error('OpenAI is not configured for this workspace.');
+        const accessToken = await getWorkspaceAccessToken(db, org.id, platform === 'instagram' ? 'instagram' : 'meta', externalId);
         const channel = platform === 'instagram' ? 'instagram' : 'facebook_messenger';
         const { data: conv } = await db.from('growth_conversations').select('id,messages,status,needs_human').eq('organization_id', org.id).eq('channel', channel).eq('visitor_id', senderId).maybeSingle();
         const history = Array.isArray(conv?.messages) ? conv.messages.slice(-12) : [];
@@ -78,7 +79,7 @@ export async function POST(req: NextRequest) {
         if(!aiQuota.allowed)throw new Error(aiQuota.reason==='quota_exceeded'?'AI message plan quota exceeded.':'Usage metering unavailable.');
         const aiRes = await fetch('https://api.openai.com/v1/chat/completions', {
           method: 'POST', headers: { Authorization: `Bearer ${openai}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ model: process.env.OPENAI_MODEL || 'gpt-4.1-mini', temperature: 0.35, max_tokens: 450, messages: [
+          body: JSON.stringify({ model: aiModel, temperature: 0.35, max_tokens: 450, messages: [
             { role: 'system', content: `You are ${String(org.name||'this business')}'s ${platform === 'instagram' ? 'Instagram' : 'Facebook Messenger'} sales assistant. Reply in the customer's language. Follow this brand profile: ${JSON.stringify(org.brand_profile||{})}. Use only this approved knowledge: ${JSON.stringify(org.knowledge_base || {})}. Do not invent prices, guarantees, timelines or services. Ask concise questions to understand service, business type and budget. Do not claim a human has approved a quote or that marketing consent was given. If a human is requested, say the team will take over.` },
             ...history.filter((m: any) => ['user', 'assistant'].includes(m.role)).map((m: any) => ({ role: m.role, content: String(m.content || '').slice(0, 2000) })),
             { role: 'user', content: text }
@@ -111,7 +112,7 @@ export async function POST(req: NextRequest) {
         const sent = await sendRes.json();
         if (!sendRes.ok) throw new Error(sent.error?.message || 'Meta messaging reply failed. Check messaging permissions and reply window.');
         const input = Number(ai.usage?.prompt_tokens || 0), output = Number(ai.usage?.completion_tokens || 0);
-        await db.from('growth_usage_logs').insert({ organization_id: org.id, provider: 'openai', model: process.env.OPENAI_MODEL || 'gpt-4.1-mini', operation: `${platform}_dm_ai_reply`, input_units: input, output_units: output, estimated_cost: estimateOpenAICost(process.env.OPENAI_MODEL || 'gpt-4.1-mini', input, output) });
+        await db.from('growth_usage_logs').insert({ organization_id: org.id, provider: 'openai', model: aiModel, operation: `${platform}_dm_ai_reply`, input_units: input, output_units: output, estimated_cost: estimateOpenAICost(process.env.OPENAI_MODEL || 'gpt-4.1-mini', input, output) });
         await db.from('growth_webhook_events').update({ processing_status: 'processed', processed_at: now }).eq('id', inserted.id);
         processed++;
       } catch (error) {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { encryptSecret, hashState } from '@/lib/growth-crypto';
+import { getWorkspaceIntegration } from '@/lib/growth-integrations';
 
 export const runtime = 'nodejs';
 const fail = (message: string) => NextResponse.redirect(new URL(`/admin/ai-growth?integration_error=${encodeURIComponent(message)}`, process.env.NEXT_PUBLIC_SITE_URL || 'https://anairagraphics.com'));
@@ -14,15 +15,17 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ prov
   if (p.get('error') || !code || !state) return fail('Authorization was cancelled or incomplete.');
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const service = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const clientId = provider === 'linkedin' ? process.env.LINKEDIN_CLIENT_ID : process.env.GOOGLE_CLIENT_ID;
-  const clientSecret = provider === 'linkedin' ? process.env.LINKEDIN_CLIENT_SECRET : process.env.GOOGLE_CLIENT_SECRET;
-  const redirectUri = provider === 'linkedin' ? process.env.LINKEDIN_REDIRECT_URI : process.env.GOOGLE_REDIRECT_URI;
-  if (!url || !service || !clientId || !clientSecret || !redirectUri) return fail('OAuth server credentials are incomplete.');
+  if (!url || !service) return fail('OAuth server database configuration is incomplete.');
 
   try {
     const db = createClient(url, service, { auth: { persistSession: false } });
     const { data: oauth } = await db.from('growth_oauth_states').select('*').eq('state_hash', hashState(state)).eq('provider', provider).is('used_at', null).gt('expires_at', new Date().toISOString()).maybeSingle();
     if (!oauth) return fail('OAuth state expired or already used. Restart connection.');
+    const config = await getWorkspaceIntegration(db, oauth.organization_id, provider === 'linkedin' ? 'linkedin' : 'youtube');
+    const clientId = config.credentials.client_id || (provider === 'linkedin' ? process.env.LINKEDIN_CLIENT_ID : process.env.GOOGLE_CLIENT_ID);
+    const clientSecret = config.credentials.client_secret || (provider === 'linkedin' ? process.env.LINKEDIN_CLIENT_SECRET : process.env.GOOGLE_CLIENT_SECRET);
+    const redirectUri = config.settings.redirect_uri || (provider === 'linkedin' ? process.env.LINKEDIN_REDIRECT_URI : process.env.GOOGLE_REDIRECT_URI);
+    if (!clientId || !clientSecret || !redirectUri) return fail('OAuth Client ID, Client Secret and Redirect URL are required in Integrations or server environment.');
     const { data: claimed } = await db.from('growth_oauth_states').update({ used_at: new Date().toISOString() }).eq('id', oauth.id).is('used_at', null).select('id').maybeSingle();
     if (!claimed) return fail('OAuth state has already been used. Restart connection.');
 
@@ -50,7 +53,30 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ prov
       metadata = { ...metadata, thumbnail: channels.items[0].snippet?.thumbnails?.default?.url || null, refresh_token_available: Boolean(token.refresh_token) };
     }
 
-    const encrypted = encryptSecret({ access_token: token.access_token, refresh_token: token.refresh_token || null, token_type: token.token_type || 'Bearer', scope: token.scope || '', expires_at: token.expires_in ? new Date(Date.now() + Number(token.expires_in) * 1000).toISOString() : null, external_id: externalId });
+    const encrypted = encryptSecret({ access_token: token.access_token, refresh_token: token.refresh_token || config.credentials.refresh_token || null, token_type: token.token_type || 'Bearer', scope: token.scope || '', expires_at: token.expires_in ? new Date(Date.now() + Number(token.expires_in) * 1000).toISOString() : null, external_id: externalId });
+    const vaultProvider = provider === 'linkedin' ? 'linkedin' : 'youtube';
+    const vaultCredentials = {
+      ...config.credentials,
+      client_id: clientId,
+      client_secret: clientSecret,
+      access_token: token.access_token,
+      ...(token.refresh_token ? { refresh_token: token.refresh_token } : {}),
+      token_type: token.token_type || 'Bearer',
+      scope: token.scope || '',
+      token_expires_at: token.expires_in ? new Date(Date.now() + Number(token.expires_in) * 1000).toISOString() : null,
+    };
+    const { error: vaultError } = await db.from('growth_integrations').upsert({
+      organization_id: oauth.organization_id,
+      provider: vaultProvider,
+      display_name: provider === 'linkedin' ? 'LinkedIn' : 'YouTube Data API',
+      encrypted_credentials: encryptSecret(vaultCredentials),
+      settings: config.settings || {},
+      connection_status: 'connected',
+      last_tested_at: new Date().toISOString(),
+      last_error: null,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'organization_id,provider' });
+    if (vaultError) throw new Error('OAuth succeeded but central integration vault could not be updated. Re-save provider app credentials and retry.');
     const { data: existing } = await db.from('growth_social_accounts').select('id').eq('organization_id', oauth.organization_id).eq('platform', provider).eq('external_account_id', externalId).maybeSingle();
     const row = { organization_id: oauth.organization_id, platform: provider, account_name: accountName, external_account_id: externalId, connection_status: 'connected', encrypted_credentials: encrypted, token_expires_at: token.expires_in ? new Date(Date.now() + Number(token.expires_in) * 1000).toISOString() : null, scopes: String(token.scope || '').split(' ').filter(Boolean), metadata };
     const saved = existing ? await db.from('growth_social_accounts').update(row).eq('id', existing.id) : await db.from('growth_social_accounts').insert(row);
