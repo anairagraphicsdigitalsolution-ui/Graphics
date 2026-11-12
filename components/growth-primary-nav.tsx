@@ -5,7 +5,7 @@ import {usePathname} from 'next/navigation';
 import {supabase} from '@/lib/supabase';
 
 const workspaceItems=[
- ['overview','Overview','/admin/ai-growth/overview'],['crm','CRM & Leads','/admin/ai-growth/crm'],
+ ['overview','Overview','/admin/ai-growth/overview'],['intelligence','Growth Intelligence','/admin/ai-growth/intelligence'],['crm','CRM & Leads','/admin/ai-growth/crm'],
  ['marketing','Content Studio','/admin/ai-growth/marketing'],['tasks','Tasks','/admin/ai-growth/tasks'],
  ['campaigns','Campaigns & Ads','/admin/ai-growth/campaigns'],['employee','AI Employee','/admin/ai-growth/employee'],
  ['automation','Automation','/admin/ai-growth/automation'],['channels','Channels','/admin/ai-growth/channels'],

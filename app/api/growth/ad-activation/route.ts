@@ -61,12 +61,25 @@ export async function POST(req:NextRequest){
    return apiJson({error:e instanceof Error?e.message:'Meta activation failed.',rolledBack:rollbackErrors.length===0,rollbackErrors},502);
   }
   const now=new Date().toISOString();
-  await Promise.all([
-   ctx.db.from('growth_ad_campaign_drafts').update({activation_status:'active',updated_at:now}).eq('id',campaignDraftId),
+  const persistence=await Promise.all([
+   ctx.db.from('growth_ad_campaign_drafts').update({activation_status:'active',updated_at:now}).eq('id',campaignDraftId).eq('organization_id',organizationId),
    ctx.db.from('growth_adset_drafts').update({activation_status:'active',updated_at:now}).eq('organization_id',organizationId).in('id',adsetIds),
    ctx.db.from('growth_ad_drafts').update({activation_status:'active',updated_at:now}).eq('organization_id',organizationId).in('id',ads.map((x:any)=>x.id)),
    ctx.db.from('growth_ad_activation_audit').update({status:'succeeded',provider_response:{activated_ads:ads.length,activated_adsets:adsets.length,campaign_id:campaign.provider_campaign_id}}).eq('id',auditId)
   ]);
+  const persistenceErrors=persistence.filter((x:any)=>x.error).map((x:any)=>String(x.error.message||'Database status update failed.'));
+  if(persistenceErrors.length){
+   const rollbackErrors:string[]=[];
+   for(const id of [...changed].reverse()){try{await setMetaStatus(version,id,'PAUSED',credentials.access_token);}catch(e){rollbackErrors.push(e instanceof Error?e.message:'Rollback failed.');}}
+   const rollbackStatus=rollbackErrors.length?'activation_failed':'paused',rolledAt=new Date().toISOString();
+   await Promise.all([
+    ctx.db.from('growth_ad_campaign_drafts').update({activation_status:rollbackStatus,updated_at:rolledAt}).eq('id',campaignDraftId).eq('organization_id',organizationId),
+    ctx.db.from('growth_adset_drafts').update({activation_status:rollbackStatus,updated_at:rolledAt}).eq('organization_id',organizationId).in('id',adsetIds),
+    ctx.db.from('growth_ad_drafts').update({activation_status:rollbackStatus,updated_at:rolledAt}).eq('organization_id',organizationId).in('id',ads.map((x:any)=>x.id)),
+    ctx.db.from('growth_ad_activation_audit').update({status:rollbackErrors.length?'failed':'rolled_back',provider_response:{persistence_errors:persistenceErrors,rollback_errors:rollbackErrors}}).eq('id',auditId)
+   ]);
+   return apiJson({error:'Meta activation succeeded but local status persistence failed. A pause rollback was attempted.',rolledBack:rollbackErrors.length===0,rollbackErrors,persistenceErrors,auditId},502);
+  }
   return apiJson({success:true,status:'ACTIVE',campaign:campaign.name,activatedAds:ads.length,activatedAdsets:adsets.length,dailyBudgetMinor:total,approvedCapMinor:cap,auditId});
  }catch(e){
   if(auditId)await ctx.db.from('growth_ad_activation_audit').update({status:'failed',provider_response:{error:e instanceof Error?e.message:'Activation failed.'}}).eq('id',auditId);
@@ -78,6 +91,7 @@ export async function PATCH(req:NextRequest){
  try{
   const b=await req.json(),organizationId=String(b.organizationId||''),campaignDraftId=String(b.campaignDraftId||''),socialAccountId=String(b.socialAccountId||'');
   if(!await requireGrowthRole(ctx.db,ctx.userId,organizationId,['owner']))return apiJson({error:'Emergency pause requires workspace OWNER role.'},403);
+  if(!await requireGrowthFeature(ctx.db,ctx.userId,organizationId,'ads'))return apiJson({error:'Ads controls are not included in this workspace plan.'},402);
   if(b.confirmation!=='PAUSE')return apiJson({error:'Type PAUSE to confirm the emergency pause.'},400);
   const {data:campaign}=await ctx.db.from('growth_ad_campaign_drafts').select('provider_campaign_id').eq('id',campaignDraftId).eq('organization_id',organizationId).maybeSingle();
   if(!campaign?.provider_campaign_id)return apiJson({error:'Campaign provider ID is missing.'},404);
