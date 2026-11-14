@@ -7,7 +7,7 @@ check('API never returns decrypted secrets',api.includes('configuredKeys')&&api.
 check('Workspace owner/manager authorization enforced',api.includes("requireGrowthRole(c.db,c.userId,org,['owner','manager'])"));
 check('Provider connection test route exists',test.includes("provider === 'openai'")&&test.includes("provider === 'twilio'")&&test.includes("provider === 'cashfree'"));
 check('Integration page has save, test and remove actions',ui.includes('Save encrypted credentials')&&ui.includes('Test connection')&&ui.includes('Remove credentials'));
-check('Integration page added to primary navigation',nav.includes("['integrations','Integrations','/admin/ai-growth/integrations']"));
+check('Integration page added to primary navigation',nav.includes("['integrations','Integrations','/admin/ai-growth/integrations','⌘']"));
 check('RLS enabled with no direct client access',migration.includes('enable row level security')&&migration.includes('using (false)'));
 check('Workspace secret resolver exists',resolver.includes('decryptSecret')&&resolver.includes('getWorkspaceIntegration'));
 check('OpenAI content generation supports workspace vault',read('app/api/growth/content/route.ts').includes("getWorkspaceIntegration(db,orgId,'openai')"));

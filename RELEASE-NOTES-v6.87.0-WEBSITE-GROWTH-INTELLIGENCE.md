@@ -11,7 +11,7 @@
 - Added Website SEO navigation entry.
 
 ## Required activation
-1. Apply `supabase/migrations/20261112200000_growth_website_intelligence_v1.sql`.
+1. Apply `supabase/migrations/20261113180052_growth_website_intelligence_v1.sql`.
 2. Deploy the updated source.
 3. Open Growth Engine → Website SEO, select a DNS-verified website and run a scan.
 

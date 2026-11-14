@@ -1,0 +1,28 @@
+const fs = require('node:fs');
+const tests = [];
+const read = (p) => fs.readFileSync(p, 'utf8');
+const meeting = read('app/api/growth/crm/meetings/route.ts');
+const proposal = read('app/api/growth/crm/proposals/route.ts');
+const ui = read('components/growth-crm-sales-tools.tsx');
+const crm = read('components/growth-crm.tsx');
+const update = read('app/api/growth/lead-update/route.ts');
+const migration = read('supabase/migrations/20261113160000_growth_meetings_proposals_v6894.sql');
+const assert = (name, ok) => tests.push([name, Boolean(ok)]);
+assert('Meeting API checks workspace membership and plan entitlement', meeting.includes('requireGrowthRole') && meeting.includes("requireGrowthFeature(ctx.db, ctx.userId, org, 'crm')"));
+assert('Meeting API verifies that the lead belongs to the same tenant', meeting.includes(".eq('organization_id', org).maybeSingle()"));
+assert('Meeting API validates timing, duration ordering and HTTPS meeting links', meeting.includes('ends <= starts') && meeting.includes('meetingUrl && !/^https:') && meeting.includes('Online meeting links must use HTTPS.'));
+assert('Meeting lifecycle records activities and advances lead to meeting_scheduled', meeting.includes("activity_type: 'meeting'") && meeting.includes("status: 'meeting_scheduled'"));
+assert('Meeting status updates are tenant-scoped and enum-validated', meeting.includes("const statuses = ['scheduled', 'completed', 'cancelled', 'no_show']") && meeting.includes(".eq('id', id).eq('organization_id', org)"));
+assert('Proposal API derives totals from validated line items', proposal.includes('quantity * unitPrice') && proposal.includes('taxRate / 100') && proposal.includes('totalAmount = round2'));
+assert('Proposal API rejects invalid quantity, tax and discount inputs', proposal.includes('quantity <= 0') && proposal.includes('taxRate > 100') && proposal.includes('discountAmount > subtotal'));
+assert('Proposal transitions enforce approval and prevent false sent status', proposal.includes('transitions[current.status]') && proposal.includes('cannot be marked sent'));
+assert('CRM sales UI schedules meetings and drafts proposals', ui.includes('/api/growth/crm/meetings') && ui.includes('/api/growth/crm/proposals'));
+assert('CRM mounts the sales execution tools in the lead profile', crm.includes('GrowthCRMSalesTools organizationId={org} leadId={active.id}'));
+assert('Lead follow-up dates create or update internal tasks', update.includes('followUpWasProvided') && update.includes("task_type:'follow_up'"));
+assert('Won/lost leads cancel active internal follow-up tasks', update.includes("['won','lost']") && update.includes("status:'cancelled'"));
+assert('Meetings and proposals have tenant-scoped foreign keys and indexes', migration.includes('references public.growth_organizations') && migration.includes('growth_meetings_org_start_idx') && migration.includes('growth_proposals_org_status_idx'));
+assert('Meetings and proposals deny direct anon/authenticated table access', migration.includes('enable row level security') && migration.includes('revoke all on table public.growth_meetings, public.growth_proposals from anon, authenticated'));
+let fail = 0;
+for (const [name, ok] of tests) { console.log(`${ok ? 'PASS' : 'FAIL'} ${name}`); if (!ok) fail++; }
+console.log(`${tests.length - fail}/${tests.length} CRM sales execution checks passed.`);
+if (fail) process.exit(1);

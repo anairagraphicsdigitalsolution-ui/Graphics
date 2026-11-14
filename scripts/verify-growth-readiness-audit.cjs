@@ -9,5 +9,8 @@ const fs=require('fs');const p='app/api/growth/readiness/route.ts',s=fs.readFile
  ['workflow dead-letter monitoring',s.includes('openWorkflowDeadLetters')],
  ['honest incomplete certification state',s.includes("certification:'not_certified'")&&s.includes("completion:'incomplete'")],
  ['data query failures surfaced',s.includes('data_check_required')],
- ['blocker identifiers returned',s.includes('blockingChecks')]
+ ['blocker identifiers returned',s.includes('blockingChecks')],
+ ['meeting metrics use a defined tenant-scoped result collection',s.includes('meetingRows=meetings||[]')&&s.includes('meetingRows.filter')],
+ ['proposal metrics use a defined tenant-scoped result collection',s.includes('proposalRows=proposals||[]')&&s.includes('proposalRows.filter')],
+ ['retention query failures affect operational data health',s.includes('proposalsError,retentionError].filter(Boolean)')]
 ];let failed=0;for(const [n,ok]of checks){console.log(`${ok?'PASS':'FAIL'} ${n}`);if(!ok)failed++;}if(failed)process.exit(1);console.log(`${checks.length}/${checks.length} readiness checks passed.`);

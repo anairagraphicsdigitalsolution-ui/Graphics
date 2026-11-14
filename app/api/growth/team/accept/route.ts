@@ -3,15 +3,17 @@ import {apiJson,growthContext} from '@/lib/growth-server';
 export const runtime='nodejs';
 export async function POST(req:NextRequest){
  const c=await growthContext(req);if('response'in c)return c.response;
- try{const b=await req.json(),id=String(b.invitationId||'');if(!id)return apiJson({error:'Invitation ID required.'},400);
-  const {data:user}=await c.db.auth.admin.getUserById(c.userId);if(!user.user?.email)return apiJson({error:'Authenticated email unavailable.'},400);
-  const {data:invite,error}=await c.db.from('growth_team_invitations').select('*').eq('id',id).eq('status','pending').maybeSingle();
-  if(error||!invite||new Date(invite.expires_at)<new Date())return apiJson({error:'Invitation is invalid, expired or already used.'},404);
-  if(invite.invited_user_id!==c.userId||invite.invited_email.toLowerCase()!==user.user.email.toLowerCase())return apiJson({error:'This invitation belongs to a different account.'},403);
-  const {error:memberError}=await c.db.from('growth_members').upsert({organization_id:invite.organization_id,user_id:c.userId,role:invite.invited_role},{onConflict:'organization_id,user_id'});
-  if(memberError)return apiJson({error:'Unable to activate workspace membership.'},500);
-  await c.db.from('growth_team_invitations').update({status:'accepted',accepted_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq('id',id);
-  await c.db.from('growth_platform_audit_events').insert({organization_id:invite.organization_id,actor_user_id:c.userId,event_type:'team.invitation_accepted',target_user_id:c.userId,target_email:user.user.email,metadata:{role:invite.invited_role}});
-  return apiJson({ok:true,organizationId:invite.organization_id});
+ try{
+  const b=await req.json(),id=String(b.invitationId||'');
+  if(!id)return apiJson({error:'Invitation ID required.'},400);
+  const {data,error}=await c.db.rpc('growth_team_accept_invitation',{p_invitation_id:id,p_user_id:c.userId});
+  if(error){
+   const message=error.message||'';
+   if(/invitation_invalid_or_expired/.test(message))return apiJson({error:'Invitation is invalid, expired or already used.'},404);
+   if(/invitation_identity_mismatch/.test(message))return apiJson({error:'This invitation belongs to a different account.'},403);
+   if(/workspace_inactive/.test(message))return apiJson({error:'This workspace is currently inactive. Ask its owner to reactivate it before accepting the invitation.'},403);
+   return apiJson({error:'Unable to accept invitation. Please retry or contact the workspace owner.'},500);
+  }
+  return apiJson(data||{ok:true});
  }catch{return apiJson({error:'Unable to accept invitation.'},400);}
 }

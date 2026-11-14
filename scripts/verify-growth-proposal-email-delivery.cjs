@@ -1,0 +1,27 @@
+const fs = require('node:fs');
+const tests = [];
+const read = (path) => fs.readFileSync(path, 'utf8');
+const api = read('app/api/growth/crm/proposals/send/route.ts');
+const rpc = read('supabase/migrations/20261113173000_growth_proposal_customer_response_links_v6897.sql');
+const worker = read('app/api/growth/worker/route.ts');
+const ui = read('components/growth-crm-sales-tools.tsx');
+const readiness = read('app/api/growth/readiness/route.ts');
+const assert = (name, condition) => tests.push([name, Boolean(condition)]);
+assert('Delivery endpoint authenticates workspace owner/manager and CRM entitlement', api.includes("['owner', 'manager']") && api.includes("'crm'"));
+assert('Delivery endpoint requires an approved proposal', api.includes("proposal.status !== 'approved'"));
+assert('Delivery endpoint checks consent, opt-out, bounce and complaint state', api.includes('lead.consent_to_contact') && api.includes('lead.contact_opted_out_at') && api.includes('lead.email_bounced_at') && api.includes('lead.email_complained_at'));
+assert('Delivery endpoint calls an atomic queue RPC with actor identity', api.includes("rpc('growth_queue_proposal_email_with_response'") && api.includes('p_actor_user_id: ctx.userId') && api.includes('p_response_token_hash: tokenHash'));
+assert('Customer email contains proposal reference, line items, total and expiry', api.includes('proposal.reference_no') && api.includes("'Items:'") && api.includes('proposal.total_amount') && api.includes('proposal.valid_until'));
+assert('RPC locks proposal row before queueing and returns existing queued job idempotently', rpc.includes('for update') && rpc.includes("coalesce(v_role,'') not in ('owner','manager')") && rpc.includes("v_proposal.delivery_status='queued'") && rpc.includes('return query select v_proposal.delivery_job_id'));
+assert('RPC rechecks active consent and tenant state server-side', rpc.includes('contact_opted_out_at') && rpc.includes('email_bounced_at') && rpc.includes("status='active'"));
+assert('RPC is not executable by public or authenticated roles', rpc.includes('revoke all on function') && rpc.includes('to service_role'));
+assert('Worker marks proposal sent only after provider send succeeds', worker.includes("delivery_status:'sent'") && worker.includes('provider_message_id:jobResult?.id'));
+assert('Worker marks proposal delivery failed only after terminal job failure', worker.includes("delivery_status:'failed'") && worker.includes('&&terminal'));
+assert('UI exposes send/retry state only for approved proposals', ui.includes("p.status === 'approved'") && ui.includes('sendProposal(p.id)') && ui.includes("p.delivery_status === 'failed' ? 'Retry email'"));
+assert('Meeting UI exports calendar-compatible UTC ICS without claiming an invitation was sent', ui.includes('downloadCalendarEvent') && ui.includes('text/calendar') && ui.includes('no invitation has been sent'));
+assert('Readiness dashboard exposes meeting, proposal and delivery metrics', readiness.includes("id:'crm_meetings'") && readiness.includes("id:'crm_proposals'") && readiness.includes('proposalsQueuedForEmail'));
+assert('Email readiness requires unsubscribe URL base configuration', readiness.includes('emailBaseReady') && readiness.includes('NEXT_PUBLIC_APP_URL or NEXT_PUBLIC_SITE_URL'));
+let failed = 0;
+for (const [name, ok] of tests) { console.log(`${ok ? 'PASS' : 'FAIL'} ${name}`); if (!ok) failed++; }
+console.log(`${tests.length - failed}/${tests.length} proposal email delivery checks passed.`);
+if (failed) process.exit(1);

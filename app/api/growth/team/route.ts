@@ -12,10 +12,11 @@ export async function GET(req:NextRequest){
   c.db.from('growth_team_invitations').select('id,invited_email,invited_role,status,expires_at,created_at').eq('organization_id',orgId).order('created_at',{ascending:false})
  ]);
  if(error)return apiJson({error:'Unable to load team members.'},500);
+ const currentRole=(members||[]).find((m:any)=>m.user_id===c.userId)?.role||null;
  const ids=(members||[]).map((m:any)=>m.user_id);
  const profiles=ids.length?await c.db.auth.admin.listUsers({page:1,perPage:1000}):{data:{users:[]},error:null};
  const users=new Map((profiles.data?.users||[]).map((u:any)=>[u.id,{email:u.email,last_sign_in_at:u.last_sign_in_at}]));
- return apiJson({members:(members||[]).map((m:any)=>({...m,...(users.get(m.user_id)||{})})),invitations:invites||[]});
+ return apiJson({currentRole,members:(members||[]).map((m:any)=>({...m,...(users.get(m.user_id)||{})})),invitations:invites||[]});
 }
 export async function POST(req:NextRequest){
  const c=await growthContext(req);if('response'in c)return c.response;
@@ -27,7 +28,24 @@ export async function POST(req:NextRequest){
   if(actor?.role!=='owner'&&role==='manager')return apiJson({error:'Only the organization owner can invite managers.'},403);
   const {data:existing}=await c.db.from('growth_team_invitations').select('id').eq('organization_id',orgId).eq('invited_email',email).eq('status','pending').gt('expires_at',new Date().toISOString()).maybeSingle();
   if(existing)return apiJson({error:'A pending invitation already exists for this email.'},409);
-  const {data:org}=await c.db.from('growth_organizations').select('name').eq('id',orgId).maybeSingle();if(!org)return apiJson({error:'Workspace not found.'},404);
+  // Do not issue an invitation to an account that is already a workspace member.
+  // Supabase Admin API does not expose a direct email-to-user lookup, so resolve
+  // the account from the paginated user directory before creating the invite.
+  let invitedAccountId:string|null=null;
+  for(let page=1;page<=10;page++){
+   const {data:userPage,error:userError}=await c.db.auth.admin.listUsers({page,perPage:1000});
+   if(userError)return apiJson({error:'Unable to validate the invited account. Please retry.'},503);
+   const match=(userPage?.users||[]).find((u:any)=>String(u.email||'').toLowerCase()===email);
+   if(match){invitedAccountId=match.id;break;}
+   if((userPage?.users||[]).length<1000)break;
+  }
+  if(invitedAccountId){
+   const {data:membership,error:membershipError}=await c.db.from('growth_members').select('user_id').eq('organization_id',orgId).eq('user_id',invitedAccountId).maybeSingle();
+   if(membershipError)return apiJson({error:'Unable to validate existing workspace membership.'},503);
+   if(membership)return apiJson({error:'This account is already a member of the workspace.'},409);
+  }
+  const {data:org}=await c.db.from('growth_organizations').select('name,status').eq('id',orgId).maybeSingle();if(!org)return apiJson({error:'Workspace not found.'},404);
+  if(org.status!=='active')return apiJson({error:'Invitations are disabled while this workspace is inactive.'},403);
   const site=(process.env.NEXT_PUBLIC_SITE_URL||process.env.ANAIRA_GROWTH_SITE_URL||'').replace(/\/$/,'');
   if(!site)return apiJson({error:'Set NEXT_PUBLIC_SITE_URL to enable invitation emails.'},503);
   const {data:row,error:rowError}=await c.db.from('growth_team_invitations').insert({organization_id:orgId,invited_email:email,invited_role:role,invited_by:c.userId}).select('id,invited_email,invited_role,status,expires_at').single();
@@ -43,8 +61,15 @@ export async function POST(req:NextRequest){
 export async function PATCH(req:NextRequest){
  const c=await growthContext(req);if('response'in c)return c.response;
  try{const b=await req.json(),orgId=String(b.organizationId||''),id=String(b.invitationId||''),memberUserId=String(b.userId||''),role=String(b.role||'');
+  if(b.action==='transfer_owner'){
+   if(!await requireGrowthRole(c.db,c.userId,orgId,['owner']))return apiJson({error:'Only the current owner can transfer ownership.'},403);
+   const targetId=String(b.userId||'');if(!targetId)return apiJson({error:'Select the new owner.'},400);
+   const {data,error}=await c.db.rpc('growth_team_transfer_owner',{p_actor_user_id:c.userId,p_organization_id:orgId,p_target_user_id:targetId});
+   if(error)return apiJson({error:/owner_required/.test(error.message)?'Only the current owner can transfer ownership.':'Unable to transfer workspace ownership.'},403);
+   return apiJson(data||{ok:true});
+  }
   if(!roles.includes(role)||!await requireGrowthRole(c.db,c.userId,orgId,['owner']))return apiJson({error:'Owner permission and a valid role are required.'},403);
-  if(memberUserId){const {data:target}=await c.db.from('growth_members').select('role').eq('organization_id',orgId).eq('user_id',memberUserId).maybeSingle();if(!target||target.role==='owner')return apiJson({error:'Member not found or owner role is immutable.'},400);const {error}=await c.db.from('growth_members').update({role}).eq('organization_id',orgId).eq('user_id',memberUserId);if(error)return apiJson({error:'Unable to update member role.'},500);await c.db.from('growth_platform_audit_events').insert({organization_id:orgId,actor_user_id:c.userId,event_type:'team.member_role_changed',target_user_id:memberUserId,metadata:{role}});return apiJson({ok:true});}
+  if(memberUserId){const {data,error}=await c.db.rpc('growth_team_set_member_role',{p_actor_user_id:c.userId,p_organization_id:orgId,p_target_user_id:memberUserId,p_role:role});if(error)return apiJson({error:/owner_required/.test(error.message)?'Only the owner can change member roles.':'Unable to update member role.'},403);return apiJson(data||{ok:true});}
   if(!id)return apiJson({error:'Invitation or member ID required.'},400);
   const {data,error}=await c.db.from('growth_team_invitations').update({invited_role:role,updated_at:new Date().toISOString()}).eq('id',id).eq('organization_id',orgId).eq('status','pending').select('id').maybeSingle();
   if(error||!data)return apiJson({error:'Pending invitation not found.'},404);return apiJson({ok:true});
@@ -56,8 +81,8 @@ export async function DELETE(req:NextRequest){
   if(!await requireGrowthRole(c.db,c.userId,orgId,['owner']))return apiJson({error:'Only the owner can remove members or revoke invitations.'},403);
   if(id){const {data,error}=await c.db.from('growth_team_invitations').update({status:'revoked',updated_at:new Date().toISOString()}).eq('id',id).eq('organization_id',orgId).eq('status','pending').select('invited_email').maybeSingle();if(error||!data)return apiJson({error:'Unable to revoke invitation.'},500);await c.db.from('growth_platform_audit_events').insert({organization_id:orgId,actor_user_id:c.userId,event_type:'team.invitation_revoked',target_email:data.invited_email});return apiJson({ok:true});}
   if(!userId||userId===c.userId)return apiJson({error:'Select another member. Owners cannot remove themselves.'},400);
-  const {data:target}=await c.db.from('growth_members').select('role').eq('organization_id',orgId).eq('user_id',userId).maybeSingle();
-  if(!target||target.role==='owner')return apiJson({error:'Member not found or owner removal is prohibited.'},400);
-  const {error}=await c.db.from('growth_members').delete().eq('organization_id',orgId).eq('user_id',userId);if(error)return apiJson({error:'Unable to remove member.'},500);await c.db.from('growth_platform_audit_events').insert({organization_id:orgId,actor_user_id:c.userId,event_type:'team.member_removed',target_user_id:userId});return apiJson({ok:true});
+  const {data,error}=await c.db.rpc('growth_team_remove_member',{p_actor_user_id:c.userId,p_organization_id:orgId,p_target_user_id:userId});
+  if(error)return apiJson({error:/cannot_remove_self/.test(error.message)?'You cannot remove your own account.':/owner_required/.test(error.message)?'Only the owner can remove members.':'Member not found or owner removal is prohibited.'},403);
+  return apiJson(data||{ok:true});
  }catch{return apiJson({error:'Invalid request.'},400);}
 }

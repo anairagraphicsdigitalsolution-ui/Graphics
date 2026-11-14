@@ -27,7 +27,7 @@ export async function POST(req:NextRequest){
   if(recentError)return apiJson({error:'Call permission migration is not applied.'},503);
   const recentRows=recent||[];if(recentRows.some((x:any)=>now-Date.parse(x.requested_at)<24*60*60*1000))return apiJson({error:'A call permission request was already sent in the last 24 hours.'},429);
   if(recentRows.length>=2)return apiJson({error:'WhatsApp allows at most two call permission requests in a rolling seven-day period.'},429);
-  const wa=await getWhatsAppCredentials(c.db,conv.channel_phone_number_id||null);if(!wa)return apiJson({error:'This workspace has no verified WhatsApp connection.'},503);
+  const wa=await getWhatsAppCredentials(c.db,orgId,conv.channel_phone_number_id||null);if(!wa)return apiJson({error:'This workspace has no verified WhatsApp connection.'},503);
   const {data:pending,error:insertError}=await c.db.from('growth_whatsapp_call_permissions').insert({organization_id:orgId,lead_id:leadId,phone_number_id:wa.phone_number_id,recipient_phone:digits,permission_status:'pending'}).select('id').single();
   if(insertError||!pending)return apiJson({error:'Could not create call permission audit record.'},500);
   const response=await fetch(`https://graph.facebook.com/${wa.graph_api_version}/${wa.phone_number_id}/messages`,{method:'POST',headers:{Authorization:`Bearer ${wa.access_token}`,'Content-Type':'application/json'},body:JSON.stringify({messaging_product:'whatsapp',recipient_type:'individual',to:digits,type:'interactive',interactive:{type:'call_permission_request',body:{text:body},action:{name:'call_permission_request'}}})});

@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { apiJson, growthContext, requireGrowthRole, requireGrowthFeature } from '@/lib/growth-server';
 import { runLeadUpdatedRules } from '@/lib/growth-automation';
 export const runtime = 'nodejs';
-const statuses = ['new','contacted','qualified','proposal','won','lost'];
+const statuses = ['new','discovered','enriched','qualified','contact_pending','contacted','interested','meeting_scheduled','proposal','negotiation','follow_up_later','won','lost'];
 const temperatures = ['hot','warm','cold'];
 export async function PATCH(req: NextRequest) {
   const ctx = await growthContext(req); if ('response' in ctx) return ctx.response;
@@ -16,6 +16,7 @@ export async function PATCH(req: NextRequest) {
     if (beforeError) return apiJson({ error: 'Lead could not be loaded before update.' }, 500);
     if (!before) return apiJson({ error: 'Lead not found.' }, 404);
     const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    const followUpWasProvided = Object.prototype.hasOwnProperty.call(b, 'follow_up_at');
     if (statuses.includes(b.status)) patch.status = b.status;
     if (temperatures.includes(b.lead_temperature)) patch.lead_temperature = b.lead_temperature;
     if (Number.isInteger(b.lead_score) && b.lead_score >= 0 && b.lead_score <= 100) patch.lead_score = b.lead_score;
@@ -28,6 +29,23 @@ export async function PATCH(req: NextRequest) {
     if (error) return apiJson({ error: 'Lead update failed.' }, 500);
     if (!data) return apiJson({ error: 'Lead not found.' }, 404);
     if(before.status!==data.status){await ctx.db.from('growth_lead_activities').insert({organization_id:orgId,lead_id:leadId,activity_type:'status_change',body:`Lead status changed from ${before.status} to ${data.status}.`,created_by:ctx.userId,metadata:{from:before.status,to:data.status}});}
+    // Keep the CRM follow-up date and its actionable task in sync. Outreach is
+    // never triggered here; this only creates an internal reminder for a user.
+    if (followUpWasProvided || ['won','lost'].includes(String(data.status))) {
+      const { data: existingTasks } = await ctx.db.from('growth_tasks').select('id,status').eq('organization_id',orgId).eq('lead_id',leadId).eq('task_type','follow_up').in('status',['open','in_progress']).order('created_at',{ascending:false}).limit(10);
+      const tasks = existingTasks || [];
+      if (['won','lost'].includes(String(data.status)) || !data.follow_up_at) {
+        if (tasks.length) await ctx.db.from('growth_tasks').update({status:'cancelled',updated_at:new Date().toISOString(),completed_at:null}).eq('organization_id',orgId).in('id',tasks.map((t:any)=>t.id));
+      } else {
+        const taskPatch = { title:`Follow up with ${String(before.name || 'customer')}`, description:'CRM-generated reminder. Review the lead record and contact eligibility before contacting the customer.', due_at:data.follow_up_at, assigned_to:data.assigned_to || ctx.userId, status:'open', completed_at:null, updated_at:new Date().toISOString() };
+        if (tasks.length) {
+          await ctx.db.from('growth_tasks').update(taskPatch).eq('id',tasks[0].id).eq('organization_id',orgId);
+          if (tasks.length > 1) await ctx.db.from('growth_tasks').update({status:'cancelled',updated_at:new Date().toISOString()}).eq('organization_id',orgId).in('id',tasks.slice(1).map((t:any)=>t.id));
+        } else {
+          await ctx.db.from('growth_tasks').insert({organization_id:orgId,lead_id:leadId,...taskPatch,task_type:'follow_up',status:'open',created_by:ctx.userId});
+        }
+      }
+    }
     try {
       await runLeadUpdatedRules(ctx.db, orgId, { ...before, ...data }, {
         status: before.status,

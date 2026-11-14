@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { apiJson, growthContext, requireGrowthRole, requireGrowthFeature } from '@/lib/growth-server';
 export const runtime='nodejs';
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const STATUSES=new Set(['new','contacted','qualified','proposal','won','lost']);
+const STATUSES=new Set(['new','discovered','enriched','qualified','contact_pending','contacted','interested','meeting_scheduled','proposal','negotiation','follow_up_later','won','lost']);
 const TEMPERATURES=new Set(['hot','warm','cold']);
 type ChangedLeadField='status'|'lead_temperature';
 function fieldValue(lead:{status?:unknown;lead_temperature?:unknown}|null|undefined,key:ChangedLeadField):unknown{

@@ -2576,3 +2576,122 @@ input,select,textarea,button{max-width:100%}
  .growth-primary-nav{margin:10px 0 14px}
  .growth-primary-nav a{padding:9px 11px}
 }
+
+
+/* Vyapar referral CTA inside project enquiry modal */
+.project-vyapar-cta{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:0 0 20px;padding:17px 19px;border:1px solid #c9a65d;background:linear-gradient(110deg,#102f22,#1c4b34);color:#fff;text-decoration:none;box-shadow:0 8px 22px rgba(16,47,34,.12)}
+.project-vyapar-copy{display:grid;gap:5px}.project-vyapar-copy strong{font:600 17px 'Playfair Display',serif;color:#f7e8c2}.project-vyapar-copy small{font-size:11px;line-height:1.55;color:#e0e9df}.project-vyapar-cta>b{white-space:nowrap;padding:11px 14px;background:#d9b66b;color:#102b21;font-size:11px;letter-spacing:.03em}
+.project-vyapar-cta:hover{background:linear-gradient(110deg,#17452f,#286044)}.project-vyapar-cta:hover>b{background:#f1d99f}
+.vyapar-media{background:#f5f0e4}.vyapar-media-list{display:grid;gap:20px}.vyapar-media-item{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(260px,.9fr);gap:clamp(20px,4vw,48px);align-items:center;padding:clamp(14px,2.5vw,26px);background:#fffdf7;border:1px solid #dfd2b8;border-radius:12px;box-shadow:0 12px 35px rgba(24,46,32,.055)}.vyapar-media-image{display:flex;align-items:center;justify-content:center;min-height:220px;max-height:540px;overflow:hidden;border-radius:8px;background:#eee9de}.vyapar-media-image img{display:block;width:100%;height:100%;max-height:520px;object-fit:contain}.vyapar-media-copy h3{margin:10px 0 12px;color:#123b29;font:600 clamp(23px,3vw,34px)/1.15 'Playfair Display',serif}.vyapar-media-copy p{color:#56675c;font-size:14px;line-height:1.85;white-space:pre-line}.vyapar-media-copy>a{display:inline-flex;margin-top:12px;padding:11px 15px;background:#153d2b;color:#fff;font-size:11px;font-weight:700;text-decoration:none}.vyapar-media-copy>a:hover{background:#c79b43;color:#102b21}
+@media(max-width:700px){.project-vyapar-cta{align-items:flex-start;flex-direction:column}.vyapar-media-item{grid-template-columns:1fr}.vyapar-media-image{min-height:160px}.vyapar-media-copy h3{font-size:25px}}
+
+
+/* Vyapar Partner — premium editorial layout */
+.vyapar-page{background:#f4efe4;color:#102e22}
+.vyapar-page .page-hero{
+  min-height:clamp(440px,48vw,650px);
+  display:flex;align-items:center;
+  background-color:#062b1e;
+  background-size:cover!important;
+  background-position:center center;
+  border-bottom:1px solid rgba(218,185,105,.7);
+  position:relative;isolation:isolate;
+}
+.vyapar-page .page-hero .container{width:min(1240px,calc(100% - 64px));padding-top:76px;padding-bottom:76px}
+.vyapar-page .page-hero h1{max-width:850px;font:600 clamp(42px,6vw,76px)/1.02 'Playfair Display',Georgia,serif;letter-spacing:-.045em;text-wrap:balance}
+.vyapar-page .page-hero p{max-width:650px;font:500 clamp(14px,1.4vw,17px)/1.85 Manrope,'DM Sans',sans-serif}
+.vyapar-page .section{padding-top:clamp(58px,7vw,100px);padding-bottom:clamp(58px,7vw,100px)}
+.vyapar-intro{background:linear-gradient(135deg,#f4efe4 0%,#e9dfcb 100%)}
+.vyapar-intro-grid{gap:clamp(30px,5vw,76px)}
+.vyapar-brand-card{border-radius:3px;outline:1px solid rgba(215,183,94,.65);outline-offset:7px;min-height:310px}
+.vyapar-media{background:#f8f4eb}
+.vyapar-media-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px}
+.vyapar-media-card{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0;align-items:stretch;min-width:0;overflow:hidden;background:#fffdf7;border:1px solid #dfd2b8;box-shadow:0 15px 42px rgba(24,46,32,.07);transition:transform .25s ease,box-shadow .25s ease}
+.vyapar-media-card:hover{transform:translateY(-4px);box-shadow:0 22px 50px rgba(24,46,32,.12)}
+.vyapar-media-card .vyapar-media-image{min-height:210px;max-height:290px;border-radius:0;background:#eee9de}
+.vyapar-media-card .vyapar-media-image img{width:100%;height:100%;max-height:290px;object-fit:contain;padding:8px}
+.vyapar-media-card .vyapar-media-copy{padding:clamp(15px,2vw,25px);display:flex;flex-direction:column;justify-content:center;min-width:0}
+.vyapar-media-card .vyapar-media-copy .eyebrow{font-size:9px;letter-spacing:.15em}
+.vyapar-media-card .vyapar-media-copy h3{font-size:clamp(18px,1.8vw,25px);overflow-wrap:anywhere}
+.vyapar-media-card .vyapar-media-copy p{font-size:12px;line-height:1.7}
+.vyapar-media-card .vyapar-media-copy>a{align-self:flex-start;margin-top:8px}
+.vyapar-plans{background:#f0e8d8}
+.vyapar-table-wrap{border-radius:3px;box-shadow:0 18px 50px rgba(16,43,30,.09)}
+.vyapar-certificate{background:linear-gradient(145deg,#e9dfcb,#f7f2e8)}
+.vyapar-certificate-frame{padding:18px;border-radius:3px;outline:1px solid #d4b46d;outline-offset:6px}
+.vyapar-final{padding-top:75px!important;padding-bottom:75px!important}
+@media(max-width:900px){
+ .vyapar-media-grid{gap:14px}
+ .vyapar-media-card{grid-template-columns:1fr}
+ .vyapar-media-card .vyapar-media-image{height:190px;min-height:190px}
+ .vyapar-media-card .vyapar-media-copy{padding:16px}
+}
+@media(max-width:600px){
+ .vyapar-page .page-hero{min-height:430px}
+ .vyapar-page .page-hero .container{width:calc(100% - 36px);padding-top:65px;padding-bottom:65px}
+ .vyapar-page .page-hero h1{font-size:clamp(38px,11vw,54px)}
+ .vyapar-media-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+ .vyapar-media-card{border-radius:2px}
+ .vyapar-media-card .vyapar-media-image{height:125px;min-height:125px}
+ .vyapar-media-card .vyapar-media-image img{max-height:125px;padding:5px}
+ .vyapar-media-card .vyapar-media-copy{padding:10px}
+ .vyapar-media-card .vyapar-media-copy .eyebrow{font-size:7px}
+ .vyapar-media-card .vyapar-media-copy h3{font-size:15px;margin:6px 0}
+ .vyapar-media-card .vyapar-media-copy p{font-size:10px;line-height:1.55}
+ .vyapar-media-card .vyapar-media-copy>a{font-size:9px;padding:8px 9px}
+ .vyapar-brand-card{min-height:220px}
+}
+
+
+/* v6.87.6: reliable Growth navigation at browser zoom / narrow CSS viewports. */
+@media (max-width:1200px){
+ .growth-admin,.growth-integrations{padding-left:12px!important;padding-bottom:96px!important}
+ .growth-admin .growth-primary-nav,.growth-integrations .growth-primary-nav,.growth-primary-nav{display:none!important}
+ .growth-mobile-nav{position:fixed!important;z-index:1000!important;inset:auto 0 0!important;display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr))!important;gap:2px!important;padding:7px max(8px,env(safe-area-inset-left)) calc(7px + env(safe-area-inset-bottom))!important;background:rgba(16,47,35,.99)!important;border-top:1px solid #d8b56f66!important;box-shadow:0 -8px 28px #0b241a24!important}
+ .growth-mobile-nav a,.growth-mobile-nav button{display:flex!important;min-width:0!important;min-height:52px!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:3px!important;border:0!important;border-radius:9px!important;background:transparent!important;color:#e3e9df!important;text-decoration:none!important}
+ .growth-mobile-nav .active{background:#d8b56f!important;color:#173b2b!important}
+ .growth-mobile-scrim{display:block!important;position:fixed!important;z-index:1001!important;inset:0!important}
+ .growth-mobile-more{display:flex!important;position:fixed!important;z-index:1002!important;inset:auto 10px calc(72px + env(safe-area-inset-bottom))!important;max-height:min(70dvh,620px)!important;overflow:auto!important;flex-direction:column!important;gap:5px!important;padding:14px!important;border:1px solid #d8cbaa!important;border-radius:16px!important;background:#fffdf7!important;box-shadow:0 18px 60px #071b1340!important}
+}
+@media (min-width:1201px){
+ .growth-admin,.growth-integrations{padding-left:calc(264px + clamp(12px,1.4vw,22px))!important}
+ .growth-primary-nav{display:flex!important}
+ .growth-mobile-nav,.growth-mobile-scrim,.growth-mobile-more{display:none!important}
+}
+
+/* Vyapar promotional media: compact editorial cards, exactly two columns. */
+.vyapar-media{background:linear-gradient(180deg,#f8f4eb 0%,#f1eadc 100%)}
+.vyapar-media-grid{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:20px!important}
+.vyapar-media-card{display:flex!important;flex-direction:column!important;min-width:0!important;overflow:hidden!important;border:1px solid #dfd2b8!important;border-radius:14px!important;background:#fffdf8!important;box-shadow:0 12px 32px rgba(24,46,32,.07)!important}
+.vyapar-media-card .vyapar-media-image{height:190px!important;min-height:190px!important;max-height:190px!important;overflow:hidden!important;background:#eee8dc!important}
+.vyapar-media-card .vyapar-media-image img{display:block!important;width:100%!important;height:100%!important;max-height:none!important;object-fit:cover!important;padding:0!important}
+.vyapar-media-card .vyapar-media-copy{padding:18px!important;gap:5px!important}
+.vyapar-media-card .vyapar-media-copy h3{font-size:clamp(17px,1.45vw,22px)!important;margin:5px 0!important}
+.vyapar-media-card .vyapar-media-copy p{font-size:12px!important;line-height:1.7!important}
+.vyapar-page .page-hero{min-height:480px!important;background-size:cover!important}
+.vyapar-page .page-hero .container{position:relative;z-index:1}
+@media(max-width:600px){
+ .vyapar-media-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important}
+ .vyapar-media-card .vyapar-media-image{height:116px!important;min-height:116px!important;max-height:116px!important}
+ .vyapar-media-card .vyapar-media-copy{padding:10px!important}
+ .vyapar-media-card .vyapar-media-copy h3{font-size:13px!important}
+ .vyapar-media-card .vyapar-media-copy p{font-size:10px!important;line-height:1.45!important}
+ .vyapar-media-card .vyapar-media-copy>a{font-size:10px!important}
+ .vyapar-page .page-hero{min-height:390px!important}
+}
+
+
+/* v6.90.5: show complete Vyapar promotional artwork without cropping. */
+.vyapar-media-card .vyapar-media-image{
+ display:flex!important;align-items:center!important;justify-content:center!important;
+ width:100%!important;height:auto!important;min-height:0!important;max-height:none!important;
+ overflow:visible!important;background:#fffdf8!important;
+}
+.vyapar-media-card .vyapar-media-image img{
+ display:block!important;width:100%!important;height:auto!important;max-height:none!important;
+ object-fit:contain!important;object-position:center center!important;padding:0!important;
+}
+@media(max-width:600px){
+ .vyapar-media-card .vyapar-media-image{height:auto!important;min-height:0!important;max-height:none!important}
+ .vyapar-media-card .vyapar-media-image img{width:100%!important;height:auto!important;max-height:none!important;object-fit:contain!important}
+}

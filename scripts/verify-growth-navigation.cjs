@@ -2,8 +2,9 @@ const fs = require('fs');
 const dashboard = fs.readFileSync('components/growth-dashboard.tsx', 'utf8');
 const control = fs.readFileSync('components/growth-control-center.tsx', 'utf8');
 const primary = fs.readFileSync('components/growth-primary-nav.tsx', 'utf8');
+const layout = fs.readFileSync('app/admin/ai-growth/layout.tsx', 'utf8');
 const checks = [
-  ['dashboard has dedicated module navigation', dashboard.includes('<GrowthPrimaryNav/>') && primary.includes('growth-module-nav')],
+  ['all Growth routes share the primary navigation layout', layout.includes('<GrowthPrimaryNav/>') && primary.includes('growth-module-nav') && !dashboard.includes('<GrowthPrimaryNav/>')],
   ['CRM and Leads have a dedicated tab', primary.includes('CRM & Leads') && dashboard.includes("activeTab==='leads'")],
   ['Content Studio has a dedicated tab', primary.includes('Content Studio') && dashboard.includes("activeTab==='content'")],
   ['Tasks have a dedicated tab', primary.includes('Tasks') && dashboard.includes("activeTab==='tasks'")],

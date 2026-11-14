@@ -26,6 +26,10 @@ export default function ProjectEnquiryModal() {
           <div className="project-choice"><strong>Call Anaira</strong>{numbers.map(n => <a key={n.tel} href={`tel:${n.tel}`}> <span>{n.label}</span><b>Call ↗</b></a>)}</div>
           <div className="project-choice"><strong>WhatsApp Anaira</strong>{numbers.map(n => <a key={n.wa} href={`https://wa.me/${n.wa}?text=Hello%20Anaira%2C%20I%20would%20like%20to%20discuss%20a%20project.`} target="_blank" rel="noreferrer"><span>{n.label}</span><b>Chat ↗</b></a>)}</div>
         </div>
+        <a className="project-vyapar-cta" href="https://vyaparapp.in/?referrer_code=730DPKK" target="_blank" rel="sponsored noopener noreferrer">
+          <span className="project-vyapar-copy"><strong>Looking for Vyapar Billing Software?</strong><small>Explore plans and purchase Vyapar directly using Anaira’s referral link.</small></span>
+          <b>Buy Vyapar ↗</b>
+        </a>
         <form className="project-modal-form" action="/api/contact" method="post">
           <strong>Send a project enquiry</strong>
           <div className="modal-form-grid"><input name="name" required maxLength={120} placeholder="Your name *"/><input name="contact" required maxLength={180} placeholder="Phone / WhatsApp / Email *"/></div>

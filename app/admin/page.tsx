@@ -234,6 +234,27 @@ export default function Admin(){const [session,setSession]=useState<any>(null);c
 </section>)}
 {settingsSection==='vyapar'&&(<section style={{marginTop:22,padding:22,border:"1px solid #cbbd98",background:"#f2efe5",borderRadius:10}}>
 <h2>Vyapar Authorised Partner Page</h2>
+<div style={{marginTop:18,padding:18,border:"1px solid #d8cbaa",borderRadius:10,background:"#fffdf7"}}>
+<strong style={{fontSize:16}}>Premium Hero Image & Appearance</strong>
+<p style={{fontSize:12,color:"#637168",lineHeight:1.7}}>Vyapar page ke hero banner ki image, heading, description, overlay aur text colours yahan se control karein. Changes Save Website Settings ke baad live honge.</p>
+<div className="admin-grid" style={{marginTop:14}}>
+<label style={{gridColumn:"1/-1"}}>Hero eyebrow<input value={settings.vyapar_hero_eyebrow||"AUTHORISED PARTNER · KULLU"} onChange={e=>setSettings({...settings,vyapar_hero_eyebrow:e.target.value})}/></label>
+<label style={{gridColumn:"1/-1"}}>Hero heading<input value={settings.vyapar_hero_title||"Business billing, made beautifully simple."} onChange={e=>setSettings({...settings,vyapar_hero_title:e.target.value})}/></label>
+<label style={{gridColumn:"1/-1"}}>Hero description<textarea rows={3} value={settings.vyapar_hero_description||"Discover Vyapar billing and business management software with local guidance from Anaira Graphics & Digital Solution."} onChange={e=>setSettings({...settings,vyapar_hero_description:e.target.value})}/></label>
+<label>Hero image URL<input value={settings.vyapar_hero_image||""} onChange={e=>setSettings({...settings,vyapar_hero_image:e.target.value})} placeholder="Paste image URL or upload"/></label>
+<label>Upload hero image<input type="file" accept="image/*" onChange={async e=>{const f=e.target.files?.[0];if(f){setBusy(true);const url=await uploadImage(f);if(url)setSettings((v:any)=>({...v,vyapar_hero_image:url}));setBusy(false);e.target.value="";}}}/></label>
+<label>Image position<select value={settings.vyapar_hero_image_position||"center center"} onChange={e=>setSettings({...settings,vyapar_hero_image_position:e.target.value})}><option value="center center">Center</option><option value="center top">Top</option><option value="center bottom">Bottom</option><option value="left center">Left</option><option value="right center">Right</option></select></label>
+<label>Overlay colour<div style={{display:"flex",gap:8,marginTop:5}}><input type="color" value={settings.vyapar_hero_overlay_color||"#062b1e"} onChange={e=>setSettings({...settings,vyapar_hero_overlay_color:e.target.value})} style={{width:48,height:38,padding:2}}/><input value={settings.vyapar_hero_overlay_color||"#062b1e"} onChange={e=>setSettings({...settings,vyapar_hero_overlay_color:e.target.value})}/></div></label>
+<label style={{gridColumn:"1/-1"}}>Overlay strength · {settings.vyapar_hero_overlay_opacity??78}%<input type="range" min="0" max="100" value={settings.vyapar_hero_overlay_opacity??78} onChange={e=>setSettings({...settings,vyapar_hero_overlay_opacity:Number(e.target.value)})} style={{display:"block",width:"100%",marginTop:10}}/></label>
+{[{key:"vyapar_hero_eyebrow_color",label:"Eyebrow text colour",fallback:"#e7c879"},{key:"vyapar_hero_title_color",label:"Main heading colour",fallback:"#ffffff"},{key:"vyapar_hero_description_color",label:"Description colour",fallback:"#f0eee5"}].map(c=><label key={c.key}>{c.label}<div style={{display:"flex",gap:8,marginTop:5}}><input type="color" value={settings[c.key]||c.fallback} onChange={e=>setSettings({...settings,[c.key]:e.target.value})} style={{width:48,height:38,padding:2}}/><input value={settings[c.key]||c.fallback} onChange={e=>setSettings({...settings,[c.key]:e.target.value})}/></div></label>)}
+<div style={{gridColumn:"1/-1",padding:12,border:"1px solid #d8c9a8",borderRadius:8,background:"#f7f2e8"}}>
+<strong style={{fontSize:13}}>Hero preview</strong>
+<div style={{marginTop:10,minHeight:170,borderRadius:7,overflow:"hidden",background:settings.vyapar_hero_image?`linear-gradient(90deg,${settings.vyapar_hero_overlay_color||"#062b1e"}${Math.round((settings.vyapar_hero_overlay_opacity??78)*2.55).toString(16).padStart(2,"0")} 0%,transparent 100%),url("${settings.vyapar_hero_image}") center/${"cover"}`:"#062b1e",padding:22,color:settings.vyapar_hero_title_color||"#fff"}}>
+<div style={{fontSize:10,letterSpacing:2,color:settings.vyapar_hero_eyebrow_color||"#e7c879"}}>{settings.vyapar_hero_eyebrow||"AUTHORISED PARTNER · KULLU"}</div><div style={{fontSize:24,fontWeight:700,maxWidth:520,marginTop:12}}>{settings.vyapar_hero_title||"Business billing, made beautifully simple."}</div><p style={{fontSize:12,maxWidth:520,color:settings.vyapar_hero_description_color||"#f0eee5"}}>{settings.vyapar_hero_description||"Discover Vyapar billing and business management software with local guidance."}</p>
+</div>
+</div>
+</div>
+</div>
 <p style={{fontSize:13,color:"#637168",lineHeight:1.7}}>Manage the public Vyapar partner page, certificate image, enquiry contact and plan pricing. Keep prices updated against the latest authorised price sheet before publishing.</p>
 <div className="admin-grid" style={{marginTop:16}}>
 <label>Partner page title<input value={settings.vyapar_partner_title||"Authorised Vyapar Partner in Kullu"} onChange={e=>setSettings({...settings,vyapar_partner_title:e.target.value})}/></label>
@@ -244,6 +265,21 @@ export default function Admin(){const [session,setSession]=useState<any>(null);c
 </div>
 <label style={{display:"block",marginTop:16}}>Vyapar plan prices — JSON editor<textarea rows={16} value={JSON.stringify(settings.vyapar_partner_plans||[],null,2)} onChange={e=>{try{const val=JSON.parse(e.target.value);if(!Array.isArray(val))throw new Error();setSettings((v:any)=>({...v,vyapar_partner_plans:val}));}catch{setNotice("Vyapar plans JSON is invalid. Correct it before saving.");}}}/></label>
 <p style={{fontSize:12,color:"#637168"}}>Each row uses plan, tier, mrp, selling and sale_day. Example: {"{"}"plan":"Desktop 1 Year","tier":"Gold","mrp":7699,"selling":4837,"sale_day":4353{"}"}</p>
+<div style={{marginTop:22,padding:18,border:"1px solid #d8cbaa",borderRadius:10,background:"#fffdf7"}}>
+<strong style={{fontSize:16}}>Vyapar Promotional Media Manager</strong>
+<p style={{fontSize:12,color:"#637168",lineHeight:1.7}}>Vyapar team se milne wale promotional banners, product creatives, offers aur certificates yahan upload karein. Har image ke saath apna heading aur description add karein. Images Supabase portfolio-media bucket mein save hongi.</p>
+<label style={{display:"block",marginTop:12}}>Upload promotional images<input type="file" accept="image/*" multiple onChange={async e=>{const files=Array.from(e.target.files||[]);if(!files.length)return;setBusy(true);const added:any[]=[];for(const f of files){const url=await uploadImage(f);if(url)added.push({id:crypto.randomUUID(),image_url:url,title:f.name.replace(/\\.[^.]+$/,''),description:''});}setSettings((v:any)=>({...v,vyapar_partner_media:[...(v.vyapar_partner_media||[]),...added]}));setBusy(false);e.target.value='';}}/></label>
+<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(250px,1fr))",gap:14,marginTop:16}}>
+{(settings.vyapar_partner_media||[]).map((item:any,i:number)=><div key={item.id||i} style={{border:"1px solid #d8cbaa",borderRadius:8,padding:12,background:"#fff"}}>
+<img src={item.image_url} alt={item.title||"Vyapar promotional media"} style={{width:"100%",height:170,objectFit:"contain",background:"#f2efe5",borderRadius:6}}/>
+<div style={{display:"grid",gap:9,marginTop:10}}>
+<label>Image heading<input value={item.title||""} onChange={e=>setSettings((v:any)=>{const a=[...(v.vyapar_partner_media||[])];a[i]={...a[i],title:e.target.value};return {...v,vyapar_partner_media:a};})} placeholder="e.g. Vyapar GST Billing"/></label>
+<label>Text beside image<textarea rows={4} value={item.description||""} onChange={e=>setSettings((v:any)=>{const a=[...(v.vyapar_partner_media||[])];a[i]={...a[i],description:e.target.value};return {...v,vyapar_partner_media:a};})} placeholder="Write promotional details or product information..."/></label>
+<button type="button" className="filter" onClick={()=>setSettings((v:any)=>({...v,vyapar_partner_media:(v.vyapar_partner_media||[]).filter((_:any,j:number)=>j!==i)}))}>Remove this image</button>
+</div></div>)}
+</div>
+<p style={{fontSize:12,color:"#637168",marginTop:12}}>{(settings.vyapar_partner_media||[]).length} media item(s). Press Save Website Settings above to publish.</p>
+</div>
 </section>)}
 
 
