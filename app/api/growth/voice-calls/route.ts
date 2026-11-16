@@ -1,3 +1,4 @@
+import { evaluateGrowthSendPolicy, evaluateLeadChannelSuppression } from '@/lib/growth-send-policy';
 import {NextRequest} from 'next/server';
 import {apiJson,growthContext,requireGrowthRole} from '@/lib/growth-server';
 import {getWorkspaceIntegration} from '@/lib/growth-integrations';
@@ -9,9 +10,9 @@ export async function POST(req:NextRequest){
   const b=await req.json(),orgId=String(b.organizationId||''),leadId=String(b.leadId||''),script=String(b.script||'').trim().slice(0,3500);
   if(!orgId||!leadId||!script)return apiJson({error:'Workspace, lead and approved call script are required.'},400);
   if(!await requireGrowthRole(c.db,c.userId,orgId,['owner','manager']))return apiJson({error:'Workspace owner or manager permission required.'},403);
-  const {data:lead,error}=await c.db.from('growth_leads').select('id,name,phone,consent_to_contact,contact_opted_out_at').eq('id',leadId).eq('organization_id',orgId).maybeSingle();
+  const {data:lead,error}=await c.db.from('growth_leads').select('id,name,phone,consent_to_contact,contact_opted_out_at,channel_consents,channel_suppressions').eq('id',leadId).eq('organization_id',orgId).maybeSingle();
   if(error||!lead?.phone)return apiJson({error:'Lead not found or phone missing.'},404);
-  if(!lead.consent_to_contact||lead.contact_opted_out_at)return apiJson({error:'Explicit contact consent is required. Opted-out leads cannot be called.'},403);
+  if(!lead.consent_to_contact||lead.contact_opted_out_at||lead.channel_consents?.voice?.granted!==true)return apiJson({error:'Explicit voice channel consent is required. Globally opted-out leads cannot be called.'},403);const suppression=evaluateLeadChannelSuppression(lead,'voice');if(!suppression.allowed)return apiJson({error:suppression.reason},403);const {data:orgPolicy,error:policyError}=await c.db.from('growth_organizations').select('communication_policy').eq('id',orgId).maybeSingle();if(policyError)return apiJson({error:'Workspace communication policy unavailable.'},503);const sendPolicy=evaluateGrowthSendPolicy(orgPolicy?.communication_policy,'voice');if(!sendPolicy.allowed)return apiJson({error:sendPolicy.reason},409);
   const to=String(lead.phone).trim();if(!/^\+[1-9]\d{7,14}$/.test(to))return apiJson({error:'Phone must be E.164 format, including country code.'},400);
   const twilio=await getWorkspaceIntegration(c.db,orgId,'twilio');
   const sid=(twilio.credentials.account_sid||process.env.TWILIO_ACCOUNT_SID||'').trim(),token=(twilio.credentials.auth_token||process.env.TWILIO_AUTH_TOKEN||'').trim(),from=(twilio.settings.from_number||process.env.TWILIO_VOICE_FROM||'').trim(),base=(twilio.settings.app_base_url||process.env.APP_BASE_URL||'').trim();

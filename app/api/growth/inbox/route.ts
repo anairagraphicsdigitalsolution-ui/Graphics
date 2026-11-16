@@ -5,8 +5,12 @@ export async function GET(req:NextRequest){
  const ctx=await growthContext(req); if('response' in ctx)return ctx.response;
  const orgId=req.nextUrl.searchParams.get('organizationId')||'';
  if(!await requireGrowthRole(ctx.db,ctx.userId,orgId,['owner','manager','agent']))return json({error:'Forbidden.'},403);
- if(!await requireGrowthFeature(ctx.db,ctx.userId,orgId,'ai_employee'))return json({error:'This module is not included in your workspace plan.'},402);
- const {data,error}=await ctx.db.from('growth_conversations').select('id,channel,visitor_id,status,messages,assigned_to,needs_human,last_message_at,created_at,updated_at').eq('organization_id',orgId).order('last_message_at',{ascending:false,nullsFirst:false}).limit(100);
+ const canUseAiEmployee=await requireGrowthFeature(ctx.db,ctx.userId,orgId,'ai_employee');
+ const canUseSocial=await requireGrowthFeature(ctx.db,ctx.userId,orgId,'social_channels');
+ if(!canUseAiEmployee&&!canUseSocial)return json({error:'Inbox is not included in this workspace plan.'},402);
+ let conversationQuery=ctx.db.from('growth_conversations').select('id,channel,visitor_id,status,messages,assigned_to,needs_human,last_message_at,created_at,updated_at').eq('organization_id',orgId).order('last_message_at',{ascending:false,nullsFirst:false}).limit(100);
+ if(!canUseAiEmployee)conversationQuery=conversationQuery.in('channel',['instagram','facebook_messenger']);
+ const {data,error}=await conversationQuery;
  if(error)return json({error:'Unable to load inbox.'},500);
  const ids=(data||[]).map((x:any)=>x.assigned_to).filter(Boolean);
  const {data:members}=ids.length?await ctx.db.from('growth_members').select('user_id,role').eq('organization_id',orgId).in('user_id',ids):{data:[]};

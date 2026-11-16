@@ -13,7 +13,7 @@ export type GrowthQuotaResult = {
 export async function consumeGrowthQuota(
   db: SupabaseClient,
   organizationId: string,
-  metric: 'leads' | 'ai_messages' | 'whatsapp_messages' | 'email_messages' | 'social_posts' | 'media_bytes' | 'workflow_runs',
+  metric: 'leads' | 'ai_messages' | 'whatsapp_messages' | 'email_messages' | 'sms_messages' | 'social_posts' | 'media_bytes' | 'workflow_runs',
   quantity = 1,
   idempotencyKey?: string,
   metadata: Record<string, unknown> = {},

@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 type Workspace = { organization_id: string; role: string };
 type Lead = { id: string; name: string; phone: string };
 type Permission = { id: string; lead_id: string; recipient_phone: string; is_permanent: boolean; expires_at: string | null; requested_at: string };
+type IncomingCall = { id: string; recipient_phone: string; whatsapp_call_id: string; created_at: string; call_metadata: { session?: { sdp_type?: string; sdp?: string }; caller_name?: string } };
 export default function WhatsAppCallingPage() {
   const [workspaces,setWorkspaces]=useState<Workspace[]>([]);
   const [organizationId,setOrganizationId]=useState('');
@@ -17,6 +18,7 @@ export default function WhatsAppCallingPage() {
   const [callState,setCallState]=useState<'idle'|'connecting'|'ringing'|'connected'>('idle');
   const [sessionId,setSessionId]=useState('');
   const [callId,setCallId]=useState('');
+  const [incomingCalls,setIncomingCalls]=useState<IncomingCall[]>([]);
   const peer=useRef<RTCPeerConnection|null>(null);
   const callTimeout=useRef<number|null>(null);
   const localStream=useRef<MediaStream|null>(null);
@@ -54,6 +56,64 @@ export default function WhatsAppCallingPage() {
   },[organizationId]);
   const availablePermissions=permissions.filter(p=>p.lead_id===leadId);
   useEffect(()=>{setPermissionId(availablePermissions[0]?.id||'');},[leadId,organizationId]);
+  useEffect(()=>{
+    if(!organizationId)return;
+    let live=true;
+    const load=async()=>{
+      try{
+        const response=await fetch(`/api/growth/whatsapp/calling/calls?organizationId=${encodeURIComponent(organizationId)}`,{cache:'no-store'});
+        const data=await response.json();
+        if(live&&response.ok)setIncomingCalls(Array.isArray(data.inboundCalls)?data.inboundCalls:[]);
+      }catch{/* transient polling failure; keep the last queue snapshot */}
+    };
+    void load();const timer=window.setInterval(load,2500);
+    return()=>{live=false;window.clearInterval(timer);};
+  },[organizationId]);
+  const loadIceServers=async()=>{
+    const response=await fetch(`/api/growth/whatsapp/calling/calls?organizationId=${encodeURIComponent(organizationId)}`,{cache:'no-store'});
+    const data=await response.json();
+    if(!response.ok)throw new Error(data.error||'Could not load secure media configuration.');
+    return Array.isArray(data.iceServers)?data.iceServers:[{urls:'stun:stun.l.google.com:19302'}];
+  };
+  const waitForIce=async(pc:RTCPeerConnection)=>{
+    if(pc.iceGatheringState==='complete')return;
+    await new Promise<void>(resolve=>{
+      const timeout=window.setTimeout(()=>{pc.removeEventListener('icegatheringstatechange',done);resolve();},12000);
+      const done=()=>{if(pc.iceGatheringState==='complete'){window.clearTimeout(timeout);pc.removeEventListener('icegatheringstatechange',done);resolve();}};
+      pc.addEventListener('icegatheringstatechange',done);
+    });
+  };
+  const acceptIncoming=async(call:IncomingCall)=>{
+    if(!organizationId||!call.call_metadata?.session?.sdp){setStatus('Inbound call offer is missing.');return;}
+    setBusy(true);setCallState('connecting');setStatus('Accepting inbound WhatsApp call and negotiating media…');
+    try{
+      const stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:false});
+      localStream.current=stream;
+      const pc=new RTCPeerConnection({iceServers:await loadIceServers()});peer.current=pc;
+      stream.getTracks().forEach(track=>pc.addTrack(track,stream));
+      pc.ontrack=event=>{if(remoteAudio.current)remoteAudio.current.srcObject=event.streams[0];};
+      pc.onconnectionstatechange=()=>{
+        if(pc.connectionState==='connected'){if(callTimeout.current!==null){window.clearTimeout(callTimeout.current);callTimeout.current=null;}setCallState('connected');setStatus('Inbound WhatsApp call connected.');}
+        else if(['failed','disconnected'].includes(pc.connectionState))setStatus('Inbound media connection interrupted. Check TURN/network configuration.');
+      };
+      await pc.setRemoteDescription({type:'offer',sdp:call.call_metadata.session.sdp});
+      const answer=await pc.createAnswer();await pc.setLocalDescription(answer);await waitForIce(pc);
+      const response=await fetch('/api/growth/whatsapp/calling/calls',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({organizationId,sessionId:call.id,action:'accept',answerSdp:pc.localDescription?.sdp||''})});
+      const data=await response.json();if(!response.ok)throw new Error(data.error||'Meta could not accept the inbound call.');
+      setSessionId(call.id);setCallId(call.whatsapp_call_id);setIncomingCalls(rows=>rows.filter(row=>row.id!==call.id));setStatus('Call accepted. Establishing WhatsApp audio…');
+      callTimeout.current=window.setTimeout(()=>{if(peer.current&&peer.current.connectionState!=='connected')setStatus('Call accepted but media did not connect. End the call and check TURN configuration.');},45000);
+    }catch(error){cleanup();setCallState('idle');setSessionId('');setCallId('');setStatus(error instanceof Error?error.message:'Unable to accept inbound call.');}
+    finally{setBusy(false);}
+  };
+  const rejectIncoming=async(call:IncomingCall)=>{
+    setBusy(true);
+    try{
+      const response=await fetch('/api/growth/whatsapp/calling/calls',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({organizationId,sessionId:call.id,action:'reject'})});
+      const data=await response.json();if(!response.ok)throw new Error(data.error||'Could not reject inbound call.');
+      setIncomingCalls(rows=>rows.filter(row=>row.id!==call.id));setStatus('Inbound call rejected.');
+    }catch(error){setStatus(error instanceof Error?error.message:'Call rejection failed.');}
+    finally{setBusy(false);}
+  };
   const cleanup=()=>{
     if(callTimeout.current!==null){window.clearTimeout(callTimeout.current);callTimeout.current=null;}
     peer.current?.close();peer.current=null;
@@ -66,13 +126,13 @@ export default function WhatsAppCallingPage() {
     try{
       const stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:false});
       localStream.current=stream;
-      const pc=new RTCPeerConnection({iceServers:[{urls:'stun:stun.l.google.com:19302'}]});
+      const pc=new RTCPeerConnection({iceServers:await loadIceServers()});
       peer.current=pc;
       stream.getTracks().forEach(track=>pc.addTrack(track,stream));
       pc.ontrack=(event)=>{if(remoteAudio.current)remoteAudio.current.srcObject=event.streams[0];};
       pc.onconnectionstatechange=()=>{if(pc.connectionState==='connected'){if(callTimeout.current!==null){window.clearTimeout(callTimeout.current);callTimeout.current=null;}setCallState('connected');setStatus('WhatsApp call connected.');}else if(['failed','disconnected'].includes(pc.connectionState)){setStatus('Media connection interrupted. End the call and retry after checking network/TURN configuration.');}};
       const offer=await pc.createOffer();await pc.setLocalDescription(offer);
-      if(pc.iceGatheringState!=='complete')await new Promise<void>((resolve)=>{const timeout=window.setTimeout(resolve,10000);const done=()=>{if(pc.iceGatheringState==='complete'){window.clearTimeout(timeout);pc.removeEventListener('icegatheringstatechange',done);resolve();}};pc.addEventListener('icegatheringstatechange',done);});
+      await waitForIce(pc);
       const response=await fetch('/api/growth/whatsapp/calling/calls',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({organizationId,leadId,permissionId,action:'connect',sdp:pc.localDescription?.sdp||''})});
       const data=await response.json();if(!response.ok)throw new Error(data.error||'WhatsApp call could not be started.');
       setSessionId(data.sessionId);setCallId(data.callId);setCallState('ringing');setStatus('Calling through WhatsApp…');
@@ -93,7 +153,7 @@ export default function WhatsAppCallingPage() {
   const endCall=async()=>{
     setBusy(true);
     try{
-      if(sessionId&&organizationId&&leadId){
+      if(sessionId&&organizationId){
         const response=await fetch('/api/growth/whatsapp/calling/calls',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({organizationId,leadId,sessionId,action:'terminate'})});
         const data=await response.json();if(!response.ok)throw new Error(data.error||'Provider could not terminate the call.');
       }
@@ -111,6 +171,10 @@ export default function WhatsAppCallingPage() {
       <label style={{fontWeight:650,fontSize:13}}>Lead<select style={{...inputStyle,display:'block',marginTop:8}} value={leadId} onChange={e=>setLeadId(e.target.value)}><option value="">Select lead</option>{leads.map(l=><option key={l.id} value={l.id}>{l.name||l.phone} — {l.phone}</option>)}</select></label>
       <label style={{fontWeight:650,fontSize:13}}>Customer call permission<select style={{...inputStyle,display:'block',marginTop:8}} value={permissionId} onChange={e=>setPermissionId(e.target.value)}><option value="">No active permission</option>{availablePermissions.map(p=><option key={p.id} value={p.id}>{p.is_permanent?'Permanent permission':`Expires ${new Date(p.expires_at!).toLocaleString()}`} · ${p.recipient_phone}</option>)}</select></label>
     </section>
+    <section style={{marginTop:22,padding:20,border:'1px solid #d9d2c2',borderRadius:16,background:'#fffdf7'}}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:12,flexWrap:'wrap'}}><div><div style={{fontSize:12,fontWeight:700,letterSpacing:1,color:'#8b7137'}}>INBOUND CALL QUEUE</div><h2 style={{fontSize:20,margin:'5px 0'}}>Incoming WhatsApp calls</h2></div><span style={{fontSize:12,color:'#617166'}}>{incomingCalls.length} waiting</span></div>
+      {incomingCalls.length===0?<p style={{margin:'12px 0 0',fontSize:13,color:'#617166'}}>No inbound calls waiting. This queue refreshes automatically.</p>:<div style={{display:'grid',gap:10,marginTop:14}}>{incomingCalls.map(call=><div key={call.id} style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,flexWrap:'wrap',padding:14,border:'1px solid #e7dfcc',borderRadius:12,background:'#faf7ef'}}><div><b>{call.call_metadata?.caller_name||call.recipient_phone}</b><div style={{fontSize:12,color:'#718075',marginTop:4}}>{call.recipient_phone} · {new Date(call.created_at).toLocaleTimeString()}</div></div><div style={{display:'flex',gap:8}}><button disabled={busy||callState!=='idle'} onClick={()=>acceptIncoming(call)} style={{border:0,borderRadius:8,padding:'9px 14px',fontWeight:700,color:'#fff',background:'#1f5a3f'}}>Accept</button><button disabled={busy} onClick={()=>rejectIncoming(call)} style={{border:'1px solid #a33',borderRadius:8,padding:'9px 14px',fontWeight:700,color:'#9a2929',background:'#fff'}}>Reject</button></div></div>)}</div>}
+    </section>
     <section style={{marginTop:22,padding:22,border:'1px solid #d9d2c2',borderRadius:16,background:'#f8f5eb'}}>
       <div style={{fontSize:12,fontWeight:700,letterSpacing:1,color:'#8b7137'}}>CALL STATUS</div><div style={{fontSize:22,fontWeight:750,margin:'8px 0'}}>{callState==='idle'?'Ready':callState==='connecting'?'Preparing media…':callState==='ringing'?'Ringing on WhatsApp…':'Connected'}</div>
       <p style={{margin:'0 0 18px',color:'#59695f',lineHeight:1.5}}>{status}</p>
@@ -122,7 +186,7 @@ export default function WhatsAppCallingPage() {
       {callId&&<p style={{fontSize:11,color:'#7a827a',marginTop:14,overflowWrap:'anywhere'}}>Meta Call ID: {callId}</p>}
     </section>
     <section style={{marginTop:20,padding:18,border:'1px solid #eadfbe',borderRadius:14,background:'#fffdf7',fontSize:13,lineHeight:1.6,color:'#625a48'}}>
-      <b>Before production use</b><ul style={{margin:'8px 0 0',paddingLeft:20}}><li>Enable WhatsApp Business Calling for the connected number in Meta.</li><li>Request and receive the customer’s call permission first; outbound calling without granted permission is blocked.</li><li>Use HTTPS, allow microphone access, and configure production STUN/TURN connectivity for restrictive networks.</li><li>Meta app review, number eligibility and live call testing are required. This page currently initiates outbound calls; inbound call answering is not enabled.</li></ul>
+      <b>Before production use</b><ul style={{margin:'8px 0 0',paddingLeft:20}}><li>Enable WhatsApp Business Calling for the connected number in Meta.</li><li>Request and receive the customer’s call permission first; outbound calling without granted permission is blocked.</li><li>Use HTTPS, allow microphone access, and configure production STUN/TURN connectivity for restrictive networks.</li><li>Inbound calls now enter the manager queue and can be accepted or rejected from this page. Keep the dashboard open and microphone permission enabled.</li><li>Configure WHATSAPP_TURN_URLS and WHATSAPP_TURN_SHARED_SECRET for production TURN relay; without TURN, restrictive NAT/firewall networks may fail.</li><li>Meta app review, number eligibility and live call testing are still required.</li></ul>
     </section>
   </main>;
 }

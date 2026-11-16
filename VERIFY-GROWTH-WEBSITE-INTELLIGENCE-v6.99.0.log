@@ -1,0 +1,37 @@
+PASS Tracking key issue/revoke requires authenticated owner or manager
+PASS Tracking key is cryptographically random and stored as SHA-256 hash
+PASS Tracking key plaintext is returned once only
+PASS Tracking requires DNS ownership verification
+PASS Key rotation deactivates the prior key
+PASS Dashboard metrics are website and tenant scoped
+PASS Dashboard reports real events and explicit row cap
+PASS Public event API validates hashed website key
+PASS Public event API validates verified website origin
+PASS Public event API restricts event types and payload sizes
+PASS Public event API rate limits and deduplicates events
+PASS Public event API stores only allowlisted event metadata and UTM attribution
+PASS Public form API verifies website origin and active tracking key
+PASS Public form API rate limits and validates contact fields
+PASS Form submission captures first-party UTM and click attribution
+PASS Form submission is idempotent before CRM lead creation
+PASS Website leads are saved with consent status and source
+PASS Follow-up automation is queued only with explicit contact consent
+PASS Tracking script defaults analytics to no-consent
+PASS Tracking script supports page, form, chat and conversion events
+PASS Tracking script does not persist form PII in visitor storage
+PASS Session identifiers use per-tab session storage, not long-lived visitor storage
+PASS Ad measurement consent is stored separately from analytics consent
+PASS Tracking script sends to first-party API with CORS-safe text payload
+PASS Existing Anaira AI chat records consent-gated chat-open events
+PASS Existing chat lead capture associates lead with matching website record
+PASS Admin UI exposes visitor, session, form and conversion KPIs
+PASS Website Intelligence is identified in page heading and primary navigation
+PASS Admin UI supports secure key generation, rotation and revocation
+PASS Admin UI provides installation snippet and consent instructions
+PASS Audit scanner records changes against previous homepage audit
+PASS Migration creates tenant-scoped tracking keys, events and form records
+PASS All Module 9 tables enable RLS and deny anonymous direct access
+PASS Public tracking data is server-role only for writes
+PASS Form idempotency migration creates a unique website submission key
+PASS Package version and full verification script include Module 9
+36 PASS, 0 FAIL

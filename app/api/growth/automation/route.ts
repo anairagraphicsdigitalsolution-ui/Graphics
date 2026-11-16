@@ -2,7 +2,7 @@ import {NextRequest} from 'next/server';
 import {apiJson,growthContext,requireGrowthRole,requireGrowthFeature} from '@/lib/growth-server';
 export const runtime='nodejs';
 const triggers=['lead_created','lead_status_changed','lead_temperature_changed'];
-const allowed=new Set(['create_follow_up','notify_admin','queue_whatsapp','queue_whatsapp_template','send_email','wait','condition']);
+const allowed=new Set(['create_follow_up','notify_admin','queue_whatsapp','queue_whatsapp_template','send_email','send_sms','wait','condition']);
 function validateSteps(input:any){
  if(!Array.isArray(input)||input.length<1||input.length>12)return null;
  const out:any[]=[];
@@ -36,6 +36,7 @@ function validateSteps(input:any){
   if(s.type==='queue_whatsapp'){const m=String(raw.message_template||'').trim();if(!m||m.length>3500)return null;s.message_template=m;}
   if(s.type==='queue_whatsapp_template'){const id=String(raw.template_id||'');if(!/^[0-9a-f-]{36}$/i.test(id))return null;s.template_id=id;}
   if(s.type==='send_email'){const subject=String(raw.subject||'Follow-up from Anaira').trim(),text=String(raw.text_template||'').trim();if(!subject||!text||subject.length>180||text.length>9000)return null;s.subject=subject;s.text_template=text;}
+  if(s.type==='send_sms'){const message=String(raw.message_template||'').trim();if(!message||message.length>1500)return null;s.message_template=message;}
   out.push(s);
  }
  return out;
@@ -66,7 +67,7 @@ export async function POST(req:NextRequest){
    let lead=b.sample_lead&&typeof b.sample_lead==='object'?b.sample_lead:null;
    if(b.lead_id){const {data}=await c.db.from('growth_leads').select('id,name,email,phone,status,lead_temperature,source,consent_to_contact,contact_opted_out_at').eq('id',String(b.lead_id)).eq('organization_id',orgId).maybeSingle();if(!data)return apiJson({error:'Sample lead not found in this workspace.'},404);lead=data;}
    const plan:any[]=[];for(let i=0;i<steps.length;i++){const s=steps[i];if(s.type==='condition'){if(!lead)return apiJson({error:'Condition simulation requires a workspace lead or sample lead fields.'},400);const actual=String(lead[s.field]??'').toLowerCase(),expected=String(s.value).toLowerCase(),matched=s.operator==='equals'?actual===expected:s.operator==='not_equals'?actual!==expected:actual.includes(expected);plan.push({step:i+1,type:s.type,result:matched?'matched':'not_matched',field:s.field,actual,expected});if(!matched)i+=Number(s.skip_steps||1);}else plan.push({step:i+1,type:s.type,result:'would_execute',external_effect:false});}
-   return apiJson({simulation:{safe:true,executed:false,trigger,steps:plan,consentRequired:steps.some((s:any)=>['queue_whatsapp','queue_whatsapp_template','send_email'].includes(s.type)),note:'Simulation does not enqueue messages, create tasks, or call external providers.'}});
+   return apiJson({simulation:{safe:true,executed:false,trigger,steps:plan,consentRequired:steps.some((s:any)=>['queue_whatsapp','queue_whatsapp_template','send_email','send_sms'].includes(s.type)),note:'Simulation does not enqueue messages, create tasks, or call external providers.'}});
   }
   if(action!=='create'||!name||!triggers.includes(trigger)||!steps)return apiJson({error:'A valid workflow name, trigger and 1–12 supported steps are required.'},400);
   const {data:rule,error}=await c.db.from('growth_automation_rules').insert({organization_id:orgId,name,trigger_type:trigger,action_type:steps[0].type,workflow_steps:steps,version:1,enabled:false,requires_approval:true,configuration:{builder_version:3}}).select('*').single();
@@ -85,7 +86,18 @@ export async function PATCH(req:NextRequest){
   if(!rule)return apiJson({error:'Workflow not found.'},404);
   if(action==='toggle'){
    if(typeof b.enabled!=='boolean')return apiJson({error:'enabled must be boolean.'},400);
-   const {data,error}=await c.db.from('growth_automation_rules').update({enabled:b.enabled,published_version:b.enabled?Number(rule.version||1):null,updated_at:new Date().toISOString()}).eq('id',id).eq('organization_id',orgId).select('*').single();
+   const version=Number(rule.version||1);
+   if(b.enabled){
+    const {data:snapshot,error:snapshotReadError}=await c.db.from('growth_workflow_versions').select('id').eq('organization_id',orgId).eq('rule_id',id).eq('version',version).maybeSingle();
+    if(snapshotReadError)return apiJson({error:'Unable to verify the immutable workflow version.'},503);
+    if(!snapshot){
+     const baselineSteps=legacyWorkflowSteps(rule);
+     if(!baselineSteps.length)return apiJson({error:'This workflow has no executable version to publish.'},409);
+     const {error:baselineError}=await c.db.from('growth_workflow_versions').insert({organization_id:orgId,rule_id:id,version,name:rule.name,trigger_type:rule.trigger_type,workflow_steps:baselineSteps,created_by:c.userId});
+     if(baselineError)return apiJson({error:'Unable to create the immutable version snapshot required for publishing.'},500);
+    }
+   }
+   const {data,error}=await c.db.from('growth_automation_rules').update({enabled:b.enabled,published_version:b.enabled?version:null,updated_at:new Date().toISOString()}).eq('id',id).eq('organization_id',orgId).select('*').single();
    if(error)return apiJson({error:'Unable to update workflow state.'},500);return apiJson({rule:data});
   }
   if(action==='update_steps'||action==='restore_version'){

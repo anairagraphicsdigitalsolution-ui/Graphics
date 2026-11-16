@@ -148,7 +148,12 @@ export async function POST(req: NextRequest) {
             }
           } else {
             console.error('[growth-briefing] OpenAI request failed', { status: response.status, message: String(result.error?.message || '').slice(0, 240) });
-            aiNotice = 'AI provider request failed. Rule-based metrics are shown instead.';
+            const providerErrorMessage = String(result.error?.message || '').toLowerCase();
+            aiNotice = response.status === 429 && (providerErrorMessage.includes('no credits remaining') || providerErrorMessage.includes('insufficient_quota'))
+              ? 'OpenAI API credits are exhausted. Add credits in the OpenAI Platform billing settings to restore AI analysis. Rule-based briefing metrics are shown in the meantime.'
+              : response.status === 429
+                ? 'OpenAI rate or quota limit reached. Rule-based briefing metrics are shown instead; retry after the provider limit resets or review API billing.'
+                : 'AI provider request failed. Rule-based metrics are shown instead.';
           }
         } catch (error) {
           console.error('[growth-briefing] AI analysis failed', error instanceof Error ? error.message : 'unknown error');

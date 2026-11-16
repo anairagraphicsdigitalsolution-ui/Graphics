@@ -1,0 +1,9 @@
+BUILD v6.93.8
+Exit: 127
+
+
+> anaira-graphics-portfolio@6.93.8 build
+> next build
+
+
+sh: 1: next: Permission denied

@@ -19,13 +19,15 @@ async function unsubscribe(token: string) {
   if (!identity) return { error: 'This unsubscribe link is invalid or expired.', status: 400 as const };
   const db = database();
   const now = new Date().toISOString();
-  const { data, error } = await db.from('growth_leads').update({
-    consent_to_contact: false,
-    contact_opted_out_at: now,
-    contact_opt_out_source: 'email_one_click_unsubscribe',
-    updated_at: now
-  }).eq('id', identity.leadId).eq('organization_id', identity.organizationId)
-    .select('id').maybeSingle();
+  const { data, error } = await db.rpc('growth_set_lead_channel_consent', {
+    p_organization_id: identity.organizationId,
+    p_lead_id: identity.leadId,
+    p_actor_user_id: null,
+    p_channel: 'email',
+    p_granted: false,
+    p_source: 'email_one_click_unsubscribe',
+    p_method: 'one_click_unsubscribe'
+  });
   if (error) return { error: 'Unable to update email preferences. Please retry later.', status: 503 as const };
   if (!data) return { error: 'The contact could not be found.', status: 404 as const };
   await db.from('growth_lead_activities').insert({

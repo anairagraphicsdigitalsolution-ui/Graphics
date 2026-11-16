@@ -4,6 +4,7 @@ export const runtime = 'nodejs';
 const clean = (v: unknown, max = 500) => String(v ?? '').trim().slice(0, max);
 const modes = ['online', 'phone', 'in_person'];
 const statuses = ['scheduled', 'completed', 'cancelled', 'no_show'];
+const meetingTransitions: Record<string, string[]> = { scheduled: ['completed', 'cancelled', 'no_show'] };
 
 export async function GET(req: NextRequest) {
   const ctx = await growthContext(req); if ('response' in ctx) return ctx.response;
@@ -40,7 +41,8 @@ export async function POST(req: NextRequest) {
     const { data, error } = await ctx.db.from('growth_meetings').insert(row).select('*').single();
     if (error) return apiJson({ error: 'Meeting could not be saved.' }, 500);
     await ctx.db.from('growth_lead_activities').insert({ organization_id: org, lead_id: leadId, activity_type: 'meeting', body: `Meeting scheduled: ${title} (${starts.toISOString()}).`, created_by: ctx.userId, metadata: { meeting_id: data.id, status: 'scheduled' } });
-    await ctx.db.from('growth_leads').update({ status: 'meeting_scheduled', updated_at: new Date().toISOString() }).eq('id', leadId).eq('organization_id', org);
+    // Do not reopen a closed sale when a follow-up meeting is scheduled.
+    await ctx.db.from('growth_leads').update({ status: 'meeting_scheduled', updated_at: new Date().toISOString() }).eq('id', leadId).eq('organization_id', org).not('status', 'in', '(won,lost)');
     return apiJson({ meeting: data }, 201);
   } catch { return apiJson({ error: 'Invalid meeting details.' }, 400); }
 }
@@ -52,8 +54,12 @@ export async function PATCH(req: NextRequest) {
     if (!org || !id || !statuses.includes(status)) return apiJson({ error: 'Workspace, meeting and a valid status are required.' }, 400);
     if (!await requireGrowthRole(ctx.db, ctx.userId, org, ['owner','manager','editor'])) return apiJson({ error: 'CRM editor permission required.' }, 403);
     if (!await requireGrowthFeature(ctx.db, ctx.userId, org, 'crm')) return apiJson({ error: 'CRM is not included in this workspace plan.' }, 402);
-    const { data, error } = await ctx.db.from('growth_meetings').update({ status, updated_at: new Date().toISOString() }).eq('id', id).eq('organization_id', org).select('*').maybeSingle();
-    if (error || !data) return apiJson({ error: 'Meeting could not be updated.' }, 404);
+    const { data: current, error: loadError } = await ctx.db.from('growth_meetings').select('status').eq('id', id).eq('organization_id', org).maybeSingle();
+    if (loadError || !current) return apiJson({ error: 'Meeting not found.' }, 404);
+    if (!(meetingTransitions[current.status] || []).includes(status)) return apiJson({ error: `Invalid meeting transition: ${current.status} to ${status}.` }, 409);
+    const { data, error } = await ctx.db.from('growth_meetings').update({ status, updated_at: new Date().toISOString() }).eq('id', id).eq('organization_id', org).eq('status', current.status).select('*').maybeSingle();
+    if (error) return apiJson({ error: 'Meeting could not be updated.' }, 500);
+    if (!data) return apiJson({ error: 'Meeting status changed in another session. Refresh and retry.' }, 409);
     await ctx.db.from('growth_lead_activities').insert({ organization_id: org, lead_id: data.lead_id, activity_type: 'meeting', body: `Meeting ${data.title} marked ${status.replace('_',' ')}.`, created_by: ctx.userId, metadata: { meeting_id: id, status } });
     return apiJson({ meeting: data });
   } catch { return apiJson({ error: 'Invalid meeting update.' }, 400); }

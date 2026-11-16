@@ -1,0 +1,14 @@
+v6.93.3 build verification
+Command: npm run build
+Result: NOT RUNNABLE in this environment.
+Observed output:
+> anaira-graphics-portfolio@6.93.3 build
+> next build
+
+sh: 1: next: not found
+
+Dependency installation:
+- npm install --ignore-scripts --no-audit --no-fund exceeded the 120-second execution window.
+- npm install --offline --ignore-scripts --no-audit --no-fund failed with ENOTCACHED for @supabase/supabase-js.
+- No complete node_modules tree or package-lock.json was produced.
+Conclusion: production build is unverified; no build-pass claim is made.

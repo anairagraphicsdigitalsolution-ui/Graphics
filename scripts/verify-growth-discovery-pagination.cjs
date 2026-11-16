@@ -9,6 +9,7 @@ const checks=[
  ['same domain is deduplicated within a run',s.includes('seenDomains.has(domain)')],
  ['existing tenant prospect is checked by normalized domain',s.includes("eq('website_domain',domain)")],
  ['new prospects remain without assumed contact consent',s.includes('consent_to_contact:false')],
+ ['website domain is stored in canonical www-free form',s.includes('website_domain:domain')],
  ['discovery returns requested and saved counters',s.includes('requested,maxResults:requested,discovered:items.length,saved,duplicates,skipped')],
 ];
 let failed=0;for(const [name,ok] of checks){console.log(`${ok?'PASS':'FAIL'} ${name}`);if(!ok)failed++;}if(failed)process.exit(1);

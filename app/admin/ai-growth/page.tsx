@@ -1,3 +1,3 @@
 import GrowthDashboard from '@/components/growth-dashboard';
-export const metadata={title:'AI Growth Engine | Anaira'};
-export default function AIGrowthPage(){return <GrowthDashboard initialTab="overview"/>;}
+export const metadata={title:'Complete AI Growth Control Center | Anaira'};
+export default function AIGrowthPage(){return <GrowthDashboard initialTab="control_center"/>;}

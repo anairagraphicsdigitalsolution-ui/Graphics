@@ -3,7 +3,6 @@ import { apiJson, growthContext, requireGrowthFeature, requireGrowthRole } from 
 export const runtime = 'nodejs';
 const clean = (v: unknown, max = 500) => String(v ?? '').trim().slice(0, max);
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
-const terminal = ['accepted','rejected','expired','cancelled'];
 const transitions: Record<string, string[]> = { draft: ['pending_approval','cancelled'], pending_approval: ['draft','approved','cancelled'], approved: ['sent','cancelled'], sent: ['accepted','rejected','expired'] };
 
 export async function GET(req: NextRequest) {
@@ -27,7 +26,8 @@ export async function POST(req: NextRequest) {
     if (!await requireGrowthFeature(ctx.db, ctx.userId, org, 'crm')) return apiJson({ error: 'CRM is not included in this workspace plan.' }, 402);
     const { data: lead } = await ctx.db.from('growth_leads').select('id').eq('id', leadId).eq('organization_id', org).maybeSingle();
     if (!lead) return apiJson({ error: 'Lead not found in this workspace.' }, 404);
-    const rawItems = Array.isArray(b.lineItems) ? b.lineItems.slice(0, 30) : [];
+    if (!Array.isArray(b.lineItems) || b.lineItems.length > 30) return apiJson({ error: 'Proposal must contain 1 to 30 line items.' }, 400);
+    const rawItems = b.lineItems;
     if (!rawItems.length) return apiJson({ error: 'At least one proposal line item is required.' }, 400);
     const lineItems = [] as Array<{ description: string; quantity: number; unitPrice: number; taxRate: number; amount: number; taxAmount: number }>;
     for (const item of rawItems) {
@@ -44,6 +44,7 @@ export async function POST(req: NextRequest) {
     const referenceNo = `AG-${new Date().toISOString().slice(0,10).replaceAll('-','')}-${crypto.randomUUID().slice(0,8).toUpperCase()}`;
     const currency = /^[A-Z]{3}$/.test(clean(b.currency, 3)) ? clean(b.currency, 3) : 'INR';
     const validUntil = typeof b.validUntil === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(b.validUntil) ? b.validUntil : null;
+    if (b.validUntil && (!validUntil || Number.isNaN(Date.parse(`${validUntil}T00:00:00Z`)) || new Date(`${validUntil}T00:00:00Z`).toISOString().slice(0,10) !== validUntil)) return apiJson({ error: 'Proposal expiry date is invalid.' }, 400);
     const { data, error } = await ctx.db.from('growth_proposals').insert({ organization_id: org, lead_id: leadId, reference_no: referenceNo, title, summary: clean(b.summary, 3000) || null, line_items: lineItems, currency, subtotal, discount_amount: round2(discountAmount), tax_amount: taxAmount, total_amount: totalAmount, valid_until: validUntil, created_by: ctx.userId }).select('*').single();
     if (error) return apiJson({ error: 'Proposal draft could not be saved.' }, 500);
     await ctx.db.from('growth_lead_activities').insert({ organization_id: org, lead_id: leadId, activity_type: 'note', body: `Proposal draft ${referenceNo} created. Total ${currency} ${totalAmount.toFixed(2)}. It has not been sent to the customer.`, created_by: ctx.userId, metadata: { proposal_id: data.id, reference_no: referenceNo, total_amount: totalAmount, currency } });
@@ -65,8 +66,9 @@ export async function PATCH(req: NextRequest) {
     const patch: Record<string, unknown> = { status: next, updated_at: new Date().toISOString() };
     if (next === 'approved') patch.approved_by = ctx.userId;
     if (['accepted','rejected','expired'].includes(next)) patch.responded_at = new Date().toISOString();
-    const { data, error } = await ctx.db.from('growth_proposals').update(patch).eq('id', id).eq('organization_id', org).select('*').maybeSingle();
-    if (error || !data) return apiJson({ error: 'Proposal could not be updated.' }, 500);
+    const { data, error } = await ctx.db.from('growth_proposals').update(patch).eq('id', id).eq('organization_id', org).eq('status', current.status).select('*').maybeSingle();
+    if (error) return apiJson({ error: 'Proposal could not be updated.' }, 500);
+    if (!data) return apiJson({ error: 'Proposal status changed in another session. Refresh and retry.' }, 409);
     await ctx.db.from('growth_lead_activities').insert({ organization_id: org, lead_id: data.lead_id, activity_type: 'note', body: `Proposal ${data.reference_no} status changed to ${next}.`, created_by: ctx.userId, metadata: { proposal_id: id, status: next } });
     return apiJson({ proposal: data });
   } catch { return apiJson({ error: 'Invalid proposal update.' }, 400); }

@@ -1,0 +1,220 @@
+{
+  "migrationCount": 83,
+  "lexicalOrderValid": true,
+  "createdTableCount": 69,
+  "tablesMissingExplicitRlsEnable": [],
+  "rlsEnabledTablesWithoutDetectedPolicy": [
+    {
+      "table": "growth_youtube_upload_sessions",
+      "createdIn": "20261109010000_growth_youtube_resumable_upload_sessions.sql"
+    },
+    {
+      "table": "growth_public_rate_limits",
+      "createdIn": "20261109083000_growth_public_rate_limits.sql"
+    },
+    {
+      "table": "growth_inbound_email_addresses",
+      "createdIn": "20261109183049_growth_inbound_email_lifecycle_v6800.sql"
+    },
+    {
+      "table": "growth_email_provider_events",
+      "createdIn": "20261109183049_growth_inbound_email_lifecycle_v6800.sql"
+    },
+    {
+      "table": "growth_whatsapp_templates",
+      "createdIn": "20261109250000_growth_whatsapp_template_manager.sql"
+    },
+    {
+      "table": "growth_team_invitations",
+      "createdIn": "20261109260000_growth_team_invitations_v676.sql"
+    },
+    {
+      "table": "growth_platform_audit_events",
+      "createdIn": "20261109260000_growth_team_invitations_v676.sql"
+    },
+    {
+      "table": "growth_whatsapp_connections",
+      "createdIn": "20261109270000_growth_whatsapp_tenant_connections_v6761.sql"
+    },
+    {
+      "table": "growth_plans",
+      "createdIn": "20261109290000_growth_billing_usage_entitlements_v677.sql"
+    },
+    {
+      "table": "growth_subscriptions",
+      "createdIn": "20261109290000_growth_billing_usage_entitlements_v677.sql"
+    },
+    {
+      "table": "growth_usage_counters",
+      "createdIn": "20261109290000_growth_billing_usage_entitlements_v677.sql"
+    },
+    {
+      "table": "growth_usage_events",
+      "createdIn": "20261109290000_growth_billing_usage_entitlements_v677.sql"
+    },
+    {
+      "table": "growth_lead_activities",
+      "createdIn": "20261109293000_growth_crm_activities_v6773.sql"
+    },
+    {
+      "table": "growth_payment_transactions",
+      "createdIn": "20261110000000_growth_cashfree_payments_v6794.sql"
+    },
+    {
+      "table": "growth_payment_webhook_events",
+      "createdIn": "20261110000000_growth_cashfree_payments_v6794.sql"
+    },
+    {
+      "table": "growth_lead_attachments",
+      "createdIn": "20261110010000_growth_crm_private_attachments_v6795.sql"
+    },
+    {
+      "table": "growth_manual_payments",
+      "createdIn": "20261111100000_growth_manual_billing_invoices_v6811.sql"
+    },
+    {
+      "table": "growth_invoices",
+      "createdIn": "20261111100000_growth_manual_billing_invoices_v6811.sql"
+    },
+    {
+      "table": "growth_meetings",
+      "createdIn": "20261113160000_growth_meetings_proposals_v6894.sql"
+    },
+    {
+      "table": "growth_proposals",
+      "createdIn": "20261113160000_growth_meetings_proposals_v6894.sql"
+    },
+    {
+      "table": "growth_platform_usage_plan_limits",
+      "createdIn": "20261114235900_growth_google_ads_attribution_metering_v6924.sql"
+    },
+    {
+      "table": "growth_content_publication_events",
+      "createdIn": "20261115144751_growth_ai_content_studio_v6950.sql"
+    }
+  ],
+  "explicitlyServiceRoleOnlyTables": [
+    {
+      "table": "growth_youtube_upload_sessions",
+      "createdIn": "20261109010000_growth_youtube_resumable_upload_sessions.sql"
+    },
+    {
+      "table": "growth_public_rate_limits",
+      "createdIn": "20261109083000_growth_public_rate_limits.sql"
+    },
+    {
+      "table": "growth_inbound_email_addresses",
+      "createdIn": "20261109183049_growth_inbound_email_lifecycle_v6800.sql"
+    },
+    {
+      "table": "growth_email_provider_events",
+      "createdIn": "20261109183049_growth_inbound_email_lifecycle_v6800.sql"
+    },
+    {
+      "table": "growth_whatsapp_templates",
+      "createdIn": "20261109250000_growth_whatsapp_template_manager.sql"
+    },
+    {
+      "table": "growth_team_invitations",
+      "createdIn": "20261109260000_growth_team_invitations_v676.sql"
+    },
+    {
+      "table": "growth_platform_audit_events",
+      "createdIn": "20261109260000_growth_team_invitations_v676.sql"
+    },
+    {
+      "table": "growth_whatsapp_connections",
+      "createdIn": "20261109270000_growth_whatsapp_tenant_connections_v6761.sql"
+    },
+    {
+      "table": "growth_plans",
+      "createdIn": "20261109290000_growth_billing_usage_entitlements_v677.sql"
+    },
+    {
+      "table": "growth_subscriptions",
+      "createdIn": "20261109290000_growth_billing_usage_entitlements_v677.sql"
+    },
+    {
+      "table": "growth_usage_counters",
+      "createdIn": "20261109290000_growth_billing_usage_entitlements_v677.sql"
+    },
+    {
+      "table": "growth_usage_events",
+      "createdIn": "20261109290000_growth_billing_usage_entitlements_v677.sql"
+    },
+    {
+      "table": "growth_lead_activities",
+      "createdIn": "20261109293000_growth_crm_activities_v6773.sql"
+    },
+    {
+      "table": "growth_payment_transactions",
+      "createdIn": "20261110000000_growth_cashfree_payments_v6794.sql"
+    },
+    {
+      "table": "growth_payment_webhook_events",
+      "createdIn": "20261110000000_growth_cashfree_payments_v6794.sql"
+    },
+    {
+      "table": "growth_lead_attachments",
+      "createdIn": "20261110010000_growth_crm_private_attachments_v6795.sql"
+    },
+    {
+      "table": "growth_manual_payments",
+      "createdIn": "20261111100000_growth_manual_billing_invoices_v6811.sql"
+    },
+    {
+      "table": "growth_invoices",
+      "createdIn": "20261111100000_growth_manual_billing_invoices_v6811.sql"
+    },
+    {
+      "table": "growth_meetings",
+      "createdIn": "20261113160000_growth_meetings_proposals_v6894.sql"
+    },
+    {
+      "table": "growth_proposals",
+      "createdIn": "20261113160000_growth_meetings_proposals_v6894.sql"
+    },
+    {
+      "table": "growth_platform_usage_plan_limits",
+      "createdIn": "20261114235900_growth_google_ads_attribution_metering_v6924.sql"
+    },
+    {
+      "table": "growth_content_publication_events",
+      "createdIn": "20261115144751_growth_ai_content_studio_v6950.sql"
+    }
+  ],
+  "tablesNeedingPolicyOrPrivilegeReview": [],
+  "securityDefinerFunctionsDetected": [
+    "private.is_growth_member",
+    "private.is_growth_manager",
+    "public.consume_growth_rate_limit",
+    "public.claim_due_growth_workflow_runs",
+    "public.claim_growth_jobs",
+    "public.consume_growth_quota",
+    "public.consume_growth_quota",
+    "public.consume_growth_quota",
+    "public.record_growth_promotion_click",
+    "public.claim_due_growth_autonomous_schedules",
+    "public.growth_team_accept_invitation",
+    "public.growth_team_set_member_role",
+    "public.growth_team_remove_member",
+    "public.growth_team_transfer_owner",
+    "public.growth_queue_proposal_email",
+    "public.growth_queue_proposal_email",
+    "public.growth_queue_proposal_email_with_response",
+    "public.growth_respond_to_proposal",
+    "public.growth_respond_to_proposal",
+    "public.growth_queue_proposal_email_with_response",
+    "public.growth_respond_to_proposal",
+    "public.claim_growth_jobs",
+    "public.resolve_growth_external_effect_job",
+    "public.growth_set_lead_channel_consent",
+    "public.growth_set_lead_channel_suppression"
+  ],
+  "securityDefinerFunctionsMissingNearbySearchPath": [],
+  "grantsToAnonOrPublicForManualReview": [],
+  "duplicateTimestampPrefixes": [],
+  "limitations": "Static regex audit only. Dynamic SQL, inherited policies, extension-managed objects and runtime grants require live database catalog verification."
+}
+
+Static migration audit complete. This tool does not apply or modify migrations.

@@ -14,7 +14,7 @@ const checks=[
  ['CRM tasks enforce CRM entitlement on reads and writes',(read('app/api/growth/task/route.ts').match(/requireGrowthFeature/g)||[]).length>=3],
  ['CRM imports and activities enforce CRM entitlement',/requireGrowthFeature/.test(read('app/api/growth/crm/import/route.ts'))&& (read('app/api/growth/crm/activities/route.ts').match(/requireGrowthFeature/g)||[]).length>=2],
  ['CRM attachments enforce CRM entitlement',/requireGrowthFeature\(db,userId,orgId,'crm'\)/.test(read('app/api/growth/crm/attachments/route.ts'))],
- ['CRM analytics enforce CRM entitlement',/requireGrowthFeature\(c\.db,c\.userId,orgId,'crm'\)/.test(read('app/api/growth/analytics/route.ts'))],
+ ['CRM analytics enforce CRM entitlement',/requireGrowthFeature\(ctx\.db, ctx\.userId, organizationId, 'crm'\)/.test(read('app/api/growth/analytics/route.ts'))],
  ['Super Admin can configure plan feature toggles',/toggleFeature/.test(billing)&&/features:next/.test(billing)],
  ['new plans expose module entitlements',/Included modules/.test(billing)&&/setFeatures/.test(billing)]
 ];

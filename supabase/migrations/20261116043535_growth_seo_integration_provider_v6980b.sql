@@ -1,0 +1,2 @@
+alter table public.growth_integrations drop constraint if exists growth_integrations_provider_check;
+alter table public.growth_integrations add constraint growth_integrations_provider_check check (provider in ('openai','google','google_cse','google_ads','google_seo','zerobounce','meta','whatsapp','instagram','twilio','resend','cashfree','youtube','linkedin','anthropic','gemini','razorpay','smtp'));

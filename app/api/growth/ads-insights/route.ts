@@ -65,7 +65,43 @@ export async function POST(req: NextRequest) {
     };
     const { data: saved, error: saveError } = await context.db.from('growth_ads_insights').upsert(record, { onConflict: 'organization_id,ad_account_id,period_start,period_end' }).select('id').single();
     if (saveError) return apiJson({ error: 'Meta Ads data fetched, but snapshot persistence failed. Check the v6.54 migration.' }, 500);
-    return apiJson({ success: true, snapshotId: saved.id, adAccountId, period: { since: iso(start), until: iso(end), days }, campaignRows: rows.length, rows });
+    let financialLedgerSynced = false;
+    let financialSyncWarning: string | null = null;
+    try {
+      const accountUrl = new URL(`https://graph.facebook.com/${version}/${adAccountId}`);
+      accountUrl.searchParams.set('fields', 'currency,name');
+      accountUrl.searchParams.set('access_token', credentials.access_token);
+      const accountInfo = await graphJson(accountUrl);
+      const currency = String(accountInfo.currency || '').toUpperCase();
+      if (!/^[A-Z]{3}$/.test(currency)) throw new Error('Meta Ad Account did not return a valid billing currency.');
+      const financialRows = rows.map((row: any) => ({
+        organization_id: organizationId, entry_type: 'spend', amount: Number(row.spend || 0), currency,
+        channel: 'meta_ads', campaign_id: String(row.campaign_id || ''), campaign_name: String(row.campaign_name || ''),
+        source: 'meta_ads', external_ref: `meta:${adAccountId}:${String(row.campaign_id || 'unknown')}:${String(row.date_start || '')}`,
+        entry_date: String(row.date_start || ''), status: Number(row.spend || 0) > 0 ? 'posted' : 'void',
+        notes: `Synced from Meta Ads account ${adAccountId}.`, metadata: { ad_account_id: adAccountId, account_name: accountInfo.name || null, period_end: row.date_stop || null, impressions: Number(row.impressions || 0), clicks: Number(row.clicks || 0) }
+      })).filter((row: any) => /^\d{4}-\d{2}-\d{2}$/.test(row.entry_date) && row.external_ref.length > 20);
+      const refs = financialRows.map((row: any) => row.external_ref);
+      const { data: existingRows, error: existingError } = refs.length
+        ? await context.db.from('growth_marketing_financial_entries').select('id,external_ref').eq('organization_id', organizationId).eq('source', 'meta_ads').eq('entry_type', 'spend').in('external_ref', refs)
+        : { data: [], error: null };
+      if (existingError) throw new Error('Could not inspect existing Meta spend ledger rows.');
+      const existingByRef = new Map((existingRows || []).map((row: any) => [row.external_ref, row.id]));
+      const inserts: any[] = [];
+      for (const row of financialRows) {
+        if (existingByRef.has(row.external_ref)) {
+          const updatePayload: Record<string, unknown> = { currency: row.currency, channel: row.channel, campaign_id: row.campaign_id || null, campaign_name: row.campaign_name || null, entry_date: row.entry_date, status: Number(row.amount || 0) > 0 ? 'posted' : 'void', notes: row.notes, metadata: row.metadata, updated_at: new Date().toISOString() };
+          if (Number(row.amount || 0) > 0) updatePayload.amount = Number(row.amount);
+          const { error: updateError } = await context.db.from('growth_marketing_financial_entries').update(updatePayload).eq('id', existingByRef.get(row.external_ref)).eq('organization_id', organizationId);
+          if (updateError) throw new Error('Could not refresh an existing Meta spend ledger row.');
+        } else if (Number(row.amount || 0) > 0) inserts.push(row);
+      }
+      if (inserts.length) { const { error: insertError } = await context.db.from('growth_marketing_financial_entries').insert(inserts); if (insertError) throw new Error('Could not write new Meta spend ledger rows.'); }
+      financialLedgerSynced = true;
+    } catch (syncError) {
+      financialSyncWarning = syncError instanceof Error ? syncError.message : 'Meta spend was saved as a snapshot but not reconciled to the financial ledger.';
+    }
+    return apiJson({ success: true, snapshotId: saved.id, adAccountId, period: { since: iso(start), until: iso(end), days }, campaignRows: rows.length, rows, financialLedgerSynced, financialSyncWarning });
   } catch (error) {
     return apiJson({ error: error instanceof Error ? error.message : 'Meta Ads Insights sync failed.' }, 502);
   }

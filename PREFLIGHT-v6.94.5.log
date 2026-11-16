@@ -1,0 +1,87 @@
+
+> anaira-graphics-portfolio@6.94.5 preflight:growth-production
+> node scripts/preflight-growth-production-v6935.cjs
+
+{
+  "version": "6.94.5",
+  "migrationCount": 79,
+  "migrationNamesSorted": true,
+  "lockfilePresent": false,
+  "buildScriptPresent": true,
+  "nextDependencyDeclared": true,
+  "nextInstalled": false,
+  "requiredSourceFilesPresent": [
+    "app/api/growth/readiness/route.ts",
+    "app/api/growth/worker/route.ts",
+    "supabase/migrations/20261115090000_growth_external_effect_reconciliation_v6932.sql",
+    "supabase/migrations/20261115100000_growth_external_effect_reconciliation_audit_v6933.sql"
+  ],
+  "requiredSourceFilesMissing": [],
+  "envExamplePresent": true,
+  "envExamplePath": ".env.example",
+  "envNamesFound": [
+    "ANAIRA_GROWTH_SITE_URL",
+    "APP_BASE_URL",
+    "APP_URL",
+    "CASHFREE_APP_ID",
+    "CASHFREE_ENV",
+    "CASHFREE_SECRET_KEY",
+    "CRON_SECRET",
+    "GOOGLE_ADS_API_VERSION",
+    "GOOGLE_CLIENT_ID",
+    "GOOGLE_CLIENT_SECRET",
+    "GOOGLE_CSE_API_KEY",
+    "GOOGLE_CSE_CX",
+    "GOOGLE_REDIRECT_URI",
+    "GROWTH_MEDIA_BUCKET",
+    "GROWTH_OAUTH_STATE_SECRET",
+    "GROWTH_RATE_LIMIT_SALT",
+    "GROWTH_TOKEN_ENCRYPTION_KEY",
+    "GROWTH_UNSUBSCRIBE_SECRET",
+    "LINKEDIN_API_VERSION",
+    "LINKEDIN_CLIENT_ID",
+    "LINKEDIN_CLIENT_SECRET",
+    "LINKEDIN_REDIRECT_URI",
+    "MAX_AUTOMATED_BUDGET_CHANGE_PERCENT",
+    "MAX_META_DAILY_BUDGET_MINOR",
+    "META_APP_ID",
+    "META_APP_SECRET",
+    "META_CONVERSIONS_ACCESS_TOKEN",
+    "META_GRAPH_API_VERSION",
+    "META_PIXEL_ID",
+    "META_REDIRECT_URI",
+    "META_WEBHOOK_VERIFY_TOKEN",
+    "NEXT_PUBLIC_APP_URL",
+    "NEXT_PUBLIC_SITE_URL",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+    "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+    "NEXT_PUBLIC_SUPABASE_URL",
+    "OPENAI_API_KEY",
+    "OPENAI_MODEL",
+    "RESEND_API_KEY",
+    "RESEND_FROM_EMAIL",
+    "RESEND_WEBHOOK_SECRET",
+    "SUPABASE_SERVICE_ROLE_KEY",
+    "TWILIO_ACCOUNT_SID",
+    "TWILIO_AUTH_TOKEN",
+    "TWILIO_VOICE_FROM",
+    "USD_TO_INR_ESTIMATE",
+    "VOICE_AGENT_WS_URL",
+    "WHATSAPP_ACCESS_TOKEN",
+    "WHATSAPP_ORGANIZATION_ID",
+    "WHATSAPP_PHONE_NUMBER_ID",
+    "WHATSAPP_VERIFY_TOKEN",
+    "YOUTUBE_DEFAULT_PRIVACY_STATUS",
+    "ZEROBOUNCE_API_KEY"
+  ],
+  "requiredEnvNamesNotDocumented": [],
+  "envFilesPresent": [],
+  "productionBuildPreviouslyVerified": false,
+  "liveDatabaseMigrationStatus": "unknown_not_connected",
+  "liveProviderCertification": "not_run"
+}
+
+PRODUCTION PREFLIGHT
+BLOCKED: No package-lock.json; reproducible npm install is not established.
+BLOCKED: Next.js is not installed in this working tree.
+BLOCKED: No local production environment file is present; live checks cannot run here.

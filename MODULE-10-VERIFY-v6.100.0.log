@@ -1,0 +1,28 @@
+PASS SMS composer requires workspace owner/manager
+PASS SMS send checks explicit channel consent and suppression
+PASS SMS send obeys workspace quiet-hours and channel policy
+PASS SMS destination and sender require E.164 format
+PASS SMS dispatch is queued with idempotent request identity
+PASS SMS provider dispatch uses Twilio credentials server-side
+PASS SMS worker rechecks consent before provider dispatch
+PASS SMS worker registers callback URL and provider SID
+PASS SMS is protected by external-effect outcome guard
+PASS Twilio callback verifies signed request
+PASS Twilio callback is idempotent
+PASS Twilio status callbacks map using the configured sender number
+PASS Early provider callbacks are reconciled after SMS SID persistence
+PASS Inbound SMS enters tenant-scoped unified inbox
+PASS Inbound STOP keyword revokes SMS consent
+PASS Human inbox can reply to SMS conversations
+PASS Unified inbox exposes SMS filter
+PASS Communication Center exposes SMS composer and delivery history
+PASS Email template API is tenant scoped and role gated
+PASS Email template manager and provider delivery events are visible
+PASS Workflow builder supports SMS automation steps
+PASS Workflow SMS step reuses idempotent dispatch record
+PASS Navigation exposes Communication Center
+PASS Migration enables RLS and service-role-only SMS event data
+PASS Migration adds request idempotency and delivery indexes
+PASS Email template migration enables RLS and tenant role policies
+PASS Package version and full verification script include Module 10
+27/27 Module 10 checks passed.

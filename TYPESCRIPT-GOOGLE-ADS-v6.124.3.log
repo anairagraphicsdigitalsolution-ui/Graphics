@@ -1,0 +1,5 @@
+Targeted TypeScript check for app/admin/ai-growth/google-ads/page.tsx
+Command used global TypeScript 5.8.3 with minimal ambient declarations for React and the Supabase alias because project dependencies are not installed in this environment.
+Result: PASS (exit 0)
+The exact page compiles with the corrected campaign fallback type.
+This is a targeted page type-check, not a substitute for full `next build`.

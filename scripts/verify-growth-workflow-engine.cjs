@@ -1,6 +1,13 @@
 const fs=require('fs');const path=require('path');const root=process.cwd();const read=p=>fs.readFileSync(path.join(root,p),'utf8');const checks=[];function check(name,ok){checks.push({name,ok:!!ok});if(!ok)console.error('FAIL',name);else console.log('PASS',name);}
 const api=read('app/api/growth/automation/route.ts');const worker=read('app/api/growth/worker/route.ts');const ui=read('components/growth-control-center.tsx');const migration=read('supabase/migrations/20261109171422_growth_workflow_versions_and_runs_v679.sql');const hardening=read('supabase/migrations/20261109171434_growth_workflow_audit_grants_hardening_v6791.sql');
 check('immutable workflow version table',/create table if not exists public\.growth_workflow_versions/.test(migration));
+const automationLib=read('lib/growth-automation.ts');
+check('triggered workflows execute the immutable published version snapshot',/publishedSteps\(db,orgId,rule\)/.test(automationLib)&&/eq\('version',publishedVersion\)/.test(automationLib));
+check('missing published snapshots fail closed instead of running mutable drafts',/Published workflow snapshot v.*is missing/.test(automationLib)&&/not\('published_version','is',null\)/.test(automationLib));
+check('lead-created workflow enqueue errors are surfaced',/if\(enqueueError\)throw enqueueError/.test(automationLib));
+const publicLeadRoute=read('app/api/growth/lead/route.ts');
+check('public lead capture reports workflow enqueue failures without losing the saved lead',/automationQueued=false/.test(publicLeadRoute)&&/automationWarning/.test(publicLeadRoute)&&/Lead saved but workflow enqueue failed/.test(publicLeadRoute));
+check('legacy workflow gets immutable baseline before it can be enabled',/if\(!snapshot\)[\s\S]*growth_workflow_versions/.test(api)&&/baselineSteps/.test(api));
 check('tenant scoped version policies',/private\.is_growth_member\(organization_id\)/.test(migration)&&/private\.is_growth_manager\(organization_id\)/.test(migration));
 check('step-level run event table and index',/growth_workflow_run_events/.test(migration)&&/growth_workflow_run_events_rule_idx/.test(migration));
 check('workflow audit tables are write-restricted to service role',/revoke all on table public\.growth_workflow_run_events from public, anon, authenticated/i.test(hardening)&&/grant select on table public\.growth_workflow_versions to authenticated/i.test(hardening));

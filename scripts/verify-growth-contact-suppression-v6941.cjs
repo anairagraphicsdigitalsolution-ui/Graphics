@@ -1,0 +1,18 @@
+const fs=require('fs'),path=require('path');let pass=0,fail=0;const check=(n,v)=>{if(v){pass++;console.log(`PASS ${n}`)}else{fail++;console.error(`FAIL ${n}`)}};const read=p=>fs.readFileSync(path.join(process.cwd(),p),'utf8');
+const migration=read('supabase/migrations/20261115170000_growth_contact_suppression_controls_v6941.sql'),api=read('app/api/growth/lead-suppression/route.ts'),ui=read('components/growth-crm-suppression.tsx'),crm=read('components/growth-crm.tsx'),worker=read('app/api/growth/worker/route.ts');
+check('atomic tenant-scoped suppression RPC',migration.includes('growth_set_lead_channel_suppression')&&migration.includes('organization_id=p_organization_id')&&migration.includes('for update'));
+check('RPC restricted to service role',migration.includes('from public,anon,authenticated')&&migration.includes('to service_role'));
+check('only supported channels accepted',migration.includes("('email','whatsapp','sms','voice')"));
+check('reason required when suppressing',migration.includes('suppression_reason_required'));
+check('manager authorization enforced in RPC',migration.includes('m.user_id=p_actor_user_id')&&migration.includes("m.role in ('owner','manager')"));
+check('API reads tenant-scoped customer suppression',api.includes("select('id,channel_suppressions')")&&api.includes(".eq('organization_id', organizationId)"));
+check('API requires owner or manager for changes',api.includes("['owner','manager']"));
+check('API uses atomic RPC, not client JSON overwrite',api.includes("rpc('growth_set_lead_channel_suppression'")&&!api.includes("update({ channel_suppressions"));
+check('reason and channel validated',api.includes('reason.length < 3')&&api.includes('CHANNELS.includes'));
+check('audit timeline records suppression changes',api.includes('growth_lead_activities')&&api.includes('channel_suppression'));
+check('UI provides all four channel controls', ['email','whatsapp','sms','voice'].every(x=>ui.includes(`'${x}'`)));
+check('UI requires reason to add suppression',ui.includes('reason.trim().length<3'));
+check('UI supports lifting suppression',ui.includes('Lift suppression')&&ui.includes('update(channel,false)'));
+check('UI mounted in CRM customer record',crm.includes('GrowthCRMSuppression')&&crm.includes("from './growth-crm-suppression'"));
+check('worker send-time suppression enforcement retained',worker.includes('evaluateLeadChannelSuppression'));
+console.log(`\nRESULT ${pass} PASS / ${fail} FAIL`);process.exitCode=fail?1:0;

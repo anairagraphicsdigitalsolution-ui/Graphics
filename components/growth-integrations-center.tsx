@@ -1,0 +1,5 @@
+'use client';
+import {useState} from 'react';
+import GrowthIntegrationsManager from '@/components/growth-integrations-manager';
+import GrowthPlatformIntegrationsManager from '@/components/growth-platform-integrations-manager';
+export default function GrowthIntegrationsCenter(){const [tab,setTab]=useState<'workspace'|'platform'>('workspace');return <div className="admin-wrap"><header className="growth-panel-head"><div><p className="growth-eyebrow">CENTRAL API CONTROL</p><h1>Integrations & API Credentials</h1><p>Developer-owned credentials and client-owned accounts are stored in separate vaults.</p></div><span className="growth-status-pill">Encrypted credential vaults</span></header><nav className="growth-integration-actions" aria-label="Integration ownership"><button type="button" className={tab==='workspace'?'btn':'btn btn-secondary'} onClick={()=>setTab('workspace')}>Client Workspace APIs</button><button type="button" className={tab==='platform'?'btn':'btn btn-secondary'} onClick={()=>setTab('platform')}>Anaira Developer APIs</button></nav>{tab==='workspace'?<GrowthIntegrationsManager/>:<GrowthPlatformIntegrationsManager/>}</div>;}

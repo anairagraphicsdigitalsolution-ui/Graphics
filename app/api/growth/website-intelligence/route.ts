@@ -296,10 +296,24 @@ export async function POST(req: NextRequest) {
     ];
     const score = Math.round(checks.filter(check => check.pass).length / checks.length * 100);
     const scannedAt = new Date().toISOString();
+    const { data: previousAudit } = await context.db.from('growth_website_audits')
+      .select('score,report,created_at').eq('organization_id', organizationId).eq('website_id', websiteId)
+      .order('created_at', { ascending: false }).limit(1).maybeSingle();
+    const previousChecks = new Map<string, any>((Array.isArray(previousAudit?.report?.checks) ? previousAudit.report.checks : []).map((item: any) => [String(item.key), item]));
+    const changes = checks.flatMap(check => {
+      const previous: any = previousChecks.get(check.key);
+      if (!previous) return [];
+      if (Boolean(previous.pass) === check.pass && String(previous.detail || '') === check.detail) return [];
+      return [{ key: check.key, label: check.label, previousPass: Boolean(previous.pass), currentPass: check.pass, previousDetail: String(previous.detail || ''), currentDetail: check.detail, status: check.pass ? 'improved_or_changed' : 'needs_attention' }];
+    });
     const report = {
       websiteId,
       domain: base.hostname,
       scannedAt,
+      previousScore: previousAudit?.score ?? null,
+      scoreChange: previousAudit?.score == null ? null : score - Number(previousAudit.score),
+      changeCount: changes.length,
+      changes,
       httpStatus: response.status,
       elapsedMs: Date.now() - started,
       title,

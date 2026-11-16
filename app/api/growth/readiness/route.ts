@@ -37,7 +37,7 @@ export async function GET(req:NextRequest){
   {id:'social_publishing',name:'Social publishing accounts',ready:socialCount>0,requirements:['Connect at least one eligible Facebook, Instagram, LinkedIn or YouTube account'],note:'Connection presence is checked; a live publish test is still required.'},
   {id:'whatsapp_text',name:'WhatsApp messaging',ready:env('META_APP_SECRET','WHATSAPP_VERIFY_TOKEN','NEXT_PUBLIC_SUPABASE_URL','SUPABASE_SERVICE_ROLE_KEY')&&(whatsappConnections||[]).length>0,requirements:['Meta app webhook configuration','Active tenant WhatsApp connection']},
   {id:'whatsapp_call_permissions',name:'WhatsApp call permission lifecycle',ready:!whatsappError,requirements:['Apply 20261111170000_growth_whatsapp_call_permissions.sql','Active tenant WhatsApp connection','Customer-service window for interactive permission request'],note:'Permission requests and reply capture are implemented. This does not place voice calls.'},
-  {id:'whatsapp_calling',name:'WhatsApp Business Calling media',ready:false,requirements:['Meta WhatsApp Business Calling eligibility and feature enablement','WebRTC/SIP media provider with SDP offer/answer handling','Calling connect/status/terminate webhook processing','Live inbound and outbound call tests'],note:'WhatsApp-native WebRTC calling is still not implemented. The separate Twilio outbound TTS call foundation is available when configured.'},
+  {id:'whatsapp_calling',name:'WhatsApp Business Calling media',ready:false,requirements:['Meta WhatsApp Business Calling eligibility and feature enablement','WebRTC/SIP media provider with SDP offer/answer handling','Calling connect/status/terminate webhook processing','Live inbound and outbound call tests'],note:'Outbound browser WebRTC signaling and permission-gated session initiation are present in source. Inbound answering, production TURN/media reliability, Meta number eligibility and live Meta call certification remain outstanding. The separate Twilio outbound TTS path is not native WhatsApp Calling.'},
   {id:'outbound_voice',name:'Outbound voice calling (Twilio)',ready:env('TWILIO_ACCOUNT_SID','TWILIO_AUTH_TOKEN','TWILIO_VOICE_FROM','APP_BASE_URL'),requirements:['TWILIO_ACCOUNT_SID','TWILIO_AUTH_TOKEN','TWILIO_VOICE_FROM','APP_BASE_URL','Explicit lead consent'],note:'Twilio outbound calling, signed status callbacks and call audit lifecycle are implemented. Live provider certification is still required.'},
   {id:'conversational_voice',name:'Conversational AI voice agent',ready:env('VOICE_AGENT_WS_URL','OPENAI_API_KEY','TWILIO_ACCOUNT_SID','TWILIO_AUTH_TOKEN'),requirements:['Persistent WebSocket deployment for services/voice-agent','VOICE_AGENT_WS_URL (public wss:// URL)','OPENAI_API_KEY','Twilio ConversationRelay enabled and tested'],note:'ConversationRelay WebSocket service is included. It is not ready until the persistent service is deployed and a real consented call is verified.'},
   {id:'email',name:'Outbound email delivery',ready:emailReady,requirements:['Connected Resend integration with verified From Email, or RESEND_API_KEY and RESEND_FROM_EMAIL','NEXT_PUBLIC_APP_URL or NEXT_PUBLIC_SITE_URL for secure unsubscribe links']},
@@ -58,5 +58,20 @@ export async function GET(req:NextRequest){
  const metrics={workflowRules:workflowRows.length,enabledWorkflows:workflowRows.filter((x:any)=>x.enabled).length,promotionLinks:linkRows.length,promotionClicks:linkRows.reduce((n:number,x:any)=>n+Number(x.click_count||0),0),connectedSocialAccounts:socialCount,connectedWhatsAppNumbers:(whatsappConnections||[]).length,activeInboundEmailAddresses:(inboundAddresses||[]).length,upcomingMeetings:meetingRows.filter((m:any)=>m.status==='scheduled'&&Date.parse(m.starts_at)>=Date.now()).length,completedMeetings:meetingRows.filter((m:any)=>m.status==='completed').length,proposalDrafts:proposalRows.filter((p:any)=>p.status==='draft').length,proposalsAwaitingApproval:proposalRows.filter((p:any)=>p.status==='pending_approval').length,approvedProposals:proposalRows.filter((p:any)=>p.status==='approved').length,proposalsQueuedForEmail:proposalRows.filter((p:any)=>p.delivery_status==='queued').length,proposalsSent:proposalRows.filter((p:any)=>p.delivery_status==='sent').length,proposalsFailedDelivery:proposalRows.filter((p:any)=>p.delivery_status==='failed').length,retentionTasksOpen:(retentionTasks||[]).filter((t:any)=>['open','in_progress'].includes(t.status)).length,retentionTasksOverdue:(retentionTasks||[]).filter((t:any)=>['open','in_progress'].includes(t.status)&&t.due_at&&Date.parse(t.due_at)<Date.now()).length,retentionTasksCompleted:(retentionTasks||[]).filter((t:any)=>t.status==='done').length,queuedOrProcessingJobs:queuedJobs,failedJobs,openWorkflowDeadLetters:openDeadLetters};
  const operationalState=queryErrors.length?'data_check_required':failedJobs||openDeadLetters?'attention_required':'observed';
 
- return apiJson({checks:checks.map((x:any)=>({...x,status:x.ready?'configured':'action_required'})),metrics,operationalState,blockingChecks,certification:'not_certified',completion:'incomplete',queryErrors:queryErrors.length?['One or more operational tables could not be read; verify required Supabase migrations and permissions.']:[],generatedAt:new Date().toISOString()});
+ return apiJson({
+  checks:checks.map((x:any)=>({
+   ...x,
+   status:x.ready?'configured':'action_required',
+   verificationStatus:'not_live_verified',
+   verificationNote:'Configuration presence is not proof of a successful provider transaction. Complete a live, consented end-to-end test before treating this capability as production verified.',
+  })),
+  metrics,
+  operationalState,
+  blockingChecks,
+  certification:'not_certified',
+  completion:'incomplete',
+  verification:{configurationChecks:'evaluated',liveProviderTests:'not_run',browserEndToEnd:'not_run',tenantIsolation:'not_run',productionBuild:'not_verified'},
+  queryErrors:queryErrors.length?['One or more operational tables could not be read; verify required Supabase migrations and permissions.']:[],
+  generatedAt:new Date().toISOString()
+ });
 }

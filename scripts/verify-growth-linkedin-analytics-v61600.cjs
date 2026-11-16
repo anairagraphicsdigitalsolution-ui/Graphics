@@ -1,0 +1,26 @@
+const fs = require('fs');
+const path = require('path');
+const root = path.resolve(__dirname, '..');
+const checks = [];
+function check(name, ok) { checks.push({ name, ok: Boolean(ok) }); }
+const connect = fs.readFileSync(path.join(root, 'app/api/growth/social-connect/route.ts'), 'utf8');
+const callback = fs.readFileSync(path.join(root, 'app/api/growth/social-callback/[provider]/route.ts'), 'utf8');
+const route = fs.readFileSync(path.join(root, 'app/api/growth/linkedin-analytics/route.ts'), 'utf8');
+const migration = fs.readFileSync(path.join(root, 'supabase/migrations/20261116065242_growth_linkedin_analytics_v61600.sql'), 'utf8');
+const lockdown = fs.readFileSync(path.join(root, 'supabase/migrations/20261116065521_growth_linkedin_analytics_grant_lockdown_v61600b.sql'), 'utf8');
+const ui = fs.readFileSync(path.join(root, 'components/growth-linkedin-analytics.tsx'), 'utf8');
+const management = fs.readFileSync(path.join(root, 'components/growth-social-management.tsx'), 'utf8');
+check('LinkedIn analytics scopes are explicitly opt-in', connect.includes('LINKEDIN_ORGANIZATION_ANALYTICS_ENABLED') && connect.includes('r_organization_admin') && connect.includes('r_organization_social'));
+check('OAuth callback discovers only approved organization ACLs', callback.includes('/rest/organizationAcls') && callback.includes("entry?.state === 'APPROVED'") && callback.includes('organization_urns'));
+check('Analytics endpoint verifies tenant account and authorized organization URN', route.includes(".eq('id', accountId).eq('organization_id', organizationId)") && route.includes('allowedOrganizations.some'));
+check('Analytics endpoint refreshes expiring tokens before API reads', route.includes('grant_type: \'refresh_token\'') && route.includes('encryptSecret(updatedCredentials)'));
+check('LinkedIn analytics endpoints include version and Rest.li headers', route.includes('Linkedin-Version') && route.includes('X-Restli-Protocol-Version'));
+check('Partial provider failures are reported without fabricating zero-source success', route.includes('Promise.allSettled') && route.includes('if (!availableSources)'));
+check('Snapshots are stored tenant-scoped with LinkedIn platform support', route.includes("platform: 'linkedin'") && route.includes("onConflict: 'social_account_id,period_start,period_end'") && migration.includes("'facebook','instagram','linkedin'"));
+check('Authenticated users cannot write analytics snapshots directly and service role owns writes', lockdown.includes('revoke all on table public.growth_social_insights from public, anon, authenticated') && lockdown.includes('grant select on table public.growth_social_insights to authenticated'));
+check('Social Management exposes LinkedIn analytics and authorized organization selector', management.includes('GrowthLinkedInAnalytics') && ui.includes('Company Page') && ui.includes('organization_urns'));
+check('LinkedIn analytics UI reports provider partial failures', ui.includes('Partial provider response') && ui.includes('report.partial'));
+check('Repeated syncs update the same reporting period idempotently', route.includes("onConflict: 'social_account_id,period_start,period_end'"));
+for (const item of checks) console.log(`${item.ok ? 'PASS' : 'FAIL'} ${item.name}`);
+console.log(`RESULT ${checks.filter(x => x.ok).length}/${checks.length} PASS`);
+if (checks.some(x => !x.ok)) process.exit(1);

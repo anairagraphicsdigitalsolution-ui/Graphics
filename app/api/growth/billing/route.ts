@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { randomUUID } from 'node:crypto';
 import { apiJson, growthContext, requireGrowthRole } from '@/lib/growth-server';
 export const runtime = 'nodejs';
-const allowedMetrics = ['leads','ai_messages','whatsapp_messages','email_messages','social_posts','media_bytes','workflow_runs'];
+const allowedMetrics = ['leads','ai_messages','whatsapp_messages','email_messages','sms_messages','social_posts','media_bytes','workflow_runs'];
 async function platformAdmin(db:any,userId:string){const {data,error}=await db.from('admin_users').select('user_id').eq('user_id',userId).maybeSingle();return !error&&Boolean(data?.user_id);}
 function cleanLimits(input:any){const out:Record<string,number>={};for(const key of allowedMetrics){if(input?.[key]===undefined)continue;const value=Number(input[key]);if(!Number.isSafeInteger(value)||value < -1)throw new Error(`Invalid quota for ${key}; use -1 for unlimited or a non-negative integer.`);out[key]=value;}return out;}
 function validDate(value:any){const d=new Date(value);if(!Number.isFinite(d.getTime()))throw new Error('Invalid subscription period date.');return d.toISOString();}

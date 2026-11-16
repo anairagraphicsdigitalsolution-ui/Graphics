@@ -1,0 +1,4 @@
+> anaira-graphics-portfolio@6.94.5 verify:syntax
+> node scripts/verify-syntax.cjs
+
+Checked 207 TS/TSX source files; 0 syntax errors.

@@ -31,7 +31,14 @@ export async function POST(req: NextRequest) {
   auth.searchParams.set('redirect_uri', redirectUri);
   auth.searchParams.set('response_type', 'code');
   auth.searchParams.set('state', state);
-  if (provider === 'linkedin') auth.searchParams.set('scope', 'openid profile w_member_social offline_access');
+  if (provider === 'linkedin') {
+    const baseScopes = ['openid', 'profile', 'w_member_social', 'offline_access'];
+    // Organization analytics is opt-in because LinkedIn must approve the relevant API product/scopes.
+    if (process.env.LINKEDIN_ORGANIZATION_ANALYTICS_ENABLED === 'true') {
+      baseScopes.push('r_organization_admin', 'r_organization_social');
+    }
+    auth.searchParams.set('scope', baseScopes.join(' '));
+  }
   else {
     auth.searchParams.set('scope', 'openid email profile https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/yt-analytics.readonly');
     auth.searchParams.set('access_type', 'offline');

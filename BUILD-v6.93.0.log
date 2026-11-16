@@ -1,0 +1,11 @@
+Production build attempt for Anaira AI Growth Engine v6.93.0
+=============================================================
+npm install attempt: interrupted after 60 seconds by execution time limit; no node_modules/package-lock.json produced.
+npm run build exit code: 127
+
+
+> anaira-graphics-portfolio@6.93.0 build
+> next build
+
+sh: 1: next: Permission denied
+

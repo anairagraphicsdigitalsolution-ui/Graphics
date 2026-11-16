@@ -19,29 +19,9 @@ export async function PATCH(req:NextRequest){
  try{
   const b=await req.json(),orgId=String(b.organizationId||''),id=String(b.id||''),action=String(b.action||'');
   if(!id||!await requireGrowthRole(c.db,c.userId,orgId,['owner','manager']))return apiJson({error:'Manager permission required.'},403);
-  const {data:item,error:readError}=await c.db.from('growth_workflow_dead_letters').select('*').eq('id',id).eq('organization_id',orgId).maybeSingle();
-  if(readError)return apiJson({error:'Dead-letter queue is unavailable.'},503);
-  if(!item)return apiJson({error:'Dead-letter item not found.'},404);
-  if(item.status!=='open')return apiJson({error:'Only open dead-letter items can be resolved.'},409);
-  if(action==='retry'){
-   const {data:run,error}=await c.db.from('growth_workflow_runs').select('id,status').eq('id',item.run_id).eq('rule_id',item.rule_id).eq('organization_id',orgId).maybeSingle();
-   if(error||!run)return apiJson({error:'Original workflow run could not be found.'},404);
-   if(!['failed','queued'].includes(run.status))return apiJson({error:'Workflow run is not eligible for retry.'},409);
-   const now=new Date().toISOString();
-   const {error:updateError}=await c.db.from('growth_workflow_runs').update({status:'queued',attempts:0,locked_at:null,next_run_at:now,last_error:null,completed_at:null,updated_at:now}).eq('id',run.id).eq('organization_id',orgId);
-   if(updateError)return apiJson({error:'Unable to queue workflow retry.'},500);
-   const {error:dlqError}=await c.db.from('growth_workflow_dead_letters').update({status:'retried',resolved_at:now,resolution:'manual_retry',updated_at:now}).eq('id',id).eq('organization_id',orgId).eq('status','open');
-   if(dlqError)return apiJson({error:'Run was queued but DLQ status update failed. Refresh before retrying.'},500);
-   await c.db.from('growth_workflow_run_events').insert({organization_id:orgId,run_id:run.id,rule_id:item.rule_id,event_type:'dlq_retried',details:{dead_letter_id:id,actor:c.userId}});
-   return apiJson({ok:true,status:'queued'});
-  }
-  if(action==='discard'){
-   const now=new Date().toISOString();
-   const {error}=await c.db.from('growth_workflow_dead_letters').update({status:'discarded',resolved_at:now,resolution:'manually_discarded',updated_at:now}).eq('id',id).eq('organization_id',orgId).eq('status','open');
-   if(error)return apiJson({error:'Unable to discard dead-letter item.'},500);
-   await c.db.from('growth_workflow_run_events').insert({organization_id:orgId,run_id:item.run_id,rule_id:item.rule_id,event_type:'dlq_discarded',details:{dead_letter_id:id,actor:c.userId}});
-   return apiJson({ok:true,status:'discarded'});
-  }
-  return apiJson({error:'Unsupported dead-letter action.'},400);
+  if(!['retry','discard'].includes(action))return apiJson({error:'Unsupported dead-letter action.'},400);
+  const {data,error}=await c.db.rpc('resolve_growth_workflow_dead_letter',{p_organization_id:orgId,p_dead_letter_id:id,p_action:action});
+  if(error){const message=String(error.message||'');if(message.includes('Manager permission'))return apiJson({error:'Manager permission required.'},403);if(message.includes('not found'))return apiJson({error:'Dead-letter item not found.'},404);if(message.includes('Only open')||message.includes('not eligible'))return apiJson({error:message},409);return apiJson({error:'Unable to resolve dead-letter item atomically.'},500);}
+  return apiJson(data||{ok:true,status:action==='retry'?'queued':'discarded'});
  }catch{return apiJson({error:'Invalid dead-letter request.'},400);}
 }

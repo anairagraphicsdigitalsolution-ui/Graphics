@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
   }
   if (!leadId) return apiJson({ error: 'A customer record is required.' }, 400);
   const { data: lead, error: leadError } = await ctx.db.from('growth_leads')
-    .select('id,name,status,consent_to_contact,contact_opted_out_at,email,phone,assigned_to')
+    .select('id,name,status,consent_to_contact,contact_opted_out_at,channel_consents,email,phone,email_bounced_at,email_complained_at,assigned_to')
     .eq('id', leadId).eq('organization_id', organizationId).maybeSingle();
   if (leadError || !lead) return apiJson({ error: 'Customer not found in this workspace.' }, 404);
   if (lead.status !== 'won') return apiJson({ error: 'Retention planning is available after a lead is marked Won.' }, 409);
@@ -39,8 +39,25 @@ export async function GET(req: NextRequest) {
     contactPolicy: {
       eligibleForApprovedContact: Boolean(lead.consent_to_contact) && !lead.contact_opted_out_at,
       consentRecorded: Boolean(lead.consent_to_contact), optedOut: Boolean(lead.contact_opted_out_at),
-      availableChannels: [lead.email ? 'email' : null, lead.phone ? 'phone_or_whatsapp' : null].filter(Boolean),
-      note: 'This planner creates internal tasks only. It never sends email, WhatsApp, SMS or calls.'
+      channelEligibility: {
+        email: Boolean(lead.consent_to_contact) && !lead.contact_opted_out_at && lead.channel_consents?.email?.granted === true && Boolean(lead.email)
+          && !lead.email_bounced_at && !lead.email_complained_at,
+        whatsapp: Boolean(lead.consent_to_contact) && !lead.contact_opted_out_at && lead.channel_consents?.whatsapp?.granted === true && Boolean(lead.phone),
+        sms: Boolean(lead.consent_to_contact) && !lead.contact_opted_out_at && lead.channel_consents?.sms?.granted === true && Boolean(lead.phone),
+        voice: Boolean(lead.consent_to_contact) && !lead.contact_opted_out_at && lead.channel_consents?.voice?.granted === true && Boolean(lead.phone)
+      },
+      channelBlockReasons: {
+        email: !lead.email ? 'No email address is on file.'
+          : lead.email_bounced_at ? 'Email address has a recorded bounce.'
+          : lead.email_complained_at ? 'Email address has a recorded complaint.'
+          : lead.contact_opted_out_at ? 'The customer has globally opted out.'
+          : !lead.consent_to_contact ? 'General contact consent is not recorded.'
+          : lead.channel_consents?.email?.granted !== true ? 'Explicit email channel consent is not recorded.' : null,
+        whatsapp: lead.channel_consents?.whatsapp?.granted === true ? null : 'Explicit WhatsApp channel consent is not recorded.',
+        sms: lead.channel_consents?.sms?.granted === true ? null : 'Explicit SMS channel consent is not recorded.',
+        voice: lead.channel_consents?.voice?.granted === true ? null : 'Explicit voice channel consent is not recorded.'
+      },
+      note: 'Eligibility is advisory only. Channel-specific consent evidence is required. This planner creates internal tasks and never sends customer communications. Each sending workflow must re-check consent, suppression, quiet hours and provider policy at execution time.'
     },
     metrics: {
       total: items.length,

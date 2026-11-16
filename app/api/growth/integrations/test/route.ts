@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { apiJson, growthContext, requireGrowthRole } from '@/lib/growth-server';
 import { decryptSecret } from '@/lib/growth-crypto';
+import { getWorkspaceIntegration } from '@/lib/growth-integrations';
 export const runtime = 'nodejs';
 
 type TestResult = { success: boolean; validationOnly?: boolean; message: string; status?: number; details?: Record<string, unknown> };
@@ -45,6 +46,9 @@ export async function POST(req: NextRequest) {
     } else if (provider === 'resend') {
       if (!s.api_key) return apiJson({ error: 'Resend API key is missing.' }, 400);
       response = await request('https://api.resend.com/domains', { headers: { Authorization: `Bearer ${s.api_key}` } });
+    } else if (provider === 'zerobounce') {
+      if (!s.api_key) return apiJson({ error: 'ZeroBounce API key is missing.' }, 400);
+      response = await request(`https://api.zerobounce.net/v2/getcredits?api_key=${encodeURIComponent(s.api_key)}`);
     } else if (provider === 'twilio') {
       if (!s.account_sid || !s.auth_token) return apiJson({ error: 'Twilio Account SID and Auth Token are required.' }, 400);
       response = await request(`https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(s.account_sid)}.json`, { headers: { Authorization: `Basic ${Buffer.from(`${s.account_sid}:${s.auth_token}`).toString('base64')}` } });
@@ -85,6 +89,19 @@ export async function POST(req: NextRequest) {
       } else if (clientId && clientSecret) {
         result = { success: false, validationOnly: true, message: 'OAuth app credentials are present. Complete the user consent flow to verify the authorization and refresh token.' };
       } else return apiJson({ error: `${provider} requires Client ID and Client Secret${provider === 'youtube' ? ', plus a refresh token or API key and Channel ID' : ', plus a refresh token for a live test'}.` }, 400);
+    } else if (provider === 'google_ads') {
+      if (!s.refresh_token) return apiJson({ error: 'Client workspace Google Ads refresh token is required. Complete the client Google OAuth consent flow first.' }, 400);
+      const oauth = await getWorkspaceIntegration(c.db, org, 'google_ads');
+      const clientId = String(s.client_id || oauth.credentials.client_id || '');
+      const clientSecret = String(s.client_secret || oauth.credentials.client_secret || '');
+      const developer = await getWorkspaceIntegration(c.db, org, 'google_ads');
+      const developerToken = String(developer.credentials.developer_token || '');
+      if (!clientId || !clientSecret || !developerToken) return apiJson({ error: 'Google Ads requires OAuth Client ID/Secret (workspace or Anaira developer app) and Anaira Google Ads Developer Token in the platform vault.' }, 400);
+      const refreshed = await oauthRefresh('https://oauth2.googleapis.com/token', clientId, clientSecret, s.refresh_token);
+      if (!refreshed.response.ok || !refreshed.body.access_token) return apiJson({ error: String(refreshed.body.error_description || 'Google Ads OAuth refresh failed.') }, 401);
+      const headers: Record<string,string> = { Authorization: `Bearer ${refreshed.body.access_token}`, 'developer-token': developerToken };
+      if (cfg.login_customer_id) headers['login-customer-id'] = String(cfg.login_customer_id).replace(/\D/g,'');
+      response = await request('https://googleads.googleapis.com/v18/customers:listAccessibleCustomers', { headers });
     } else if (provider === 'linkedin') {
       if (s.access_token) response = await request('https://api.linkedin.com/v2/userinfo', { headers: { Authorization: `Bearer ${s.access_token}` } });
       else if (s.client_id && s.client_secret) result = { success: false, validationOnly: true, message: 'LinkedIn OAuth app credentials are present. Connect a member account to test the access token and scopes.' };

@@ -13,7 +13,7 @@ const youtubeAnalytics = fs.readFileSync(path.join(root, 'app/api/growth/youtube
 const youtubeAnalyticsUi = fs.readFileSync(path.join(root, 'components/growth-youtube-analytics.tsx'), 'utf8');
 const socialConnect = fs.readFileSync(path.join(root, 'app/api/growth/social-connect/route.ts'), 'utf8');
 const checks = [
-  ['workflow condition steps are accepted by API validation', "allowed=new Set(['create_follow_up','notify_admin','queue_whatsapp','queue_whatsapp_template','send_email','wait','condition'])"],
+  ['workflow condition steps are accepted by API validation', "allowed=new Set(['create_follow_up','notify_admin','queue_whatsapp','queue_whatsapp_template','send_email','send_sms','wait','condition'])"],
   ['workflow conditions restrict fields to lead temperature, status and source', "allowedFields.includes(field)"],
   ['workflow conditions restrict comparison operators', "allowedOperators.includes(operator)"],
   ['workflow condition false branch skips configured steps', "index+1+(matched?0:Number(step.skip_steps||1))"],
@@ -24,10 +24,10 @@ const checks = [
   ['WhatsApp worker blocks opted-out leads', 'lead.contact_opted_out_at'],
   ['WhatsApp worker requires a linked customer conversation', 'no recent customer-initiated conversation is recorded'],
   ['WhatsApp worker enforces the 24-hour service window', 'the 24-hour customer-service window is closed'],
-  ['email worker checks active consent', 'Email send blocked: active consent is required'],
+  ['email worker checks active consent', 'Email send blocked: explicit email channel consent is required'],
   ['approved WhatsApp template worker is routed', "job.job_type==='send_whatsapp_template'"],
   ['template worker rejects non-approved templates', "template.approval_status!=='approved'"],
-  ['template worker blocks opt-outs', 'WhatsApp template blocked: active consent and no opt-out are required.'],
+  ['template worker blocks opt-outs', 'WhatsApp template blocked: explicit WhatsApp channel consent and no global opt-out are required.'],
   ['workflow template step requires an approved template', 'Selected WhatsApp template is not approved.'],
   ['template send API requires manager approval role', 'Only owner or manager can queue approved WhatsApp templates.'],
   ['template registry enforces tenant scoping', ".eq('organization_id',org)"],

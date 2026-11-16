@@ -30,6 +30,14 @@ export default function GrowthCRMRetention({ organizationId, leadId }: Props) {
       setNotice(data.message || 'Retention reminder created.'); setDescription(''); await load();
     } catch (e) { setNotice(e instanceof Error ? e.message : 'Retention task could not be saved.'); } finally { setBusy(false); }
   }
+  async function createJourney() {
+    setBusy(true); setNotice('');
+    try {
+      const response = await fetch('/api/growth/retention/journey', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await token()}` }, body: JSON.stringify({ organizationId, leadId }) });
+      const data = await response.json(); if (!response.ok) throw new Error(data.error || 'Retention sequence could not be created.');
+      setNotice(data.message || '90-day internal retention sequence created.'); await load();
+    } catch (e) { setNotice(e instanceof Error ? e.message : 'Retention sequence could not be created.'); } finally { setBusy(false); }
+  }
   async function updateTask(taskId: string, status: string) {
     setBusy(true); setNotice('');
     try {
@@ -50,6 +58,7 @@ export default function GrowthCRMRetention({ organizationId, leadId }: Props) {
       <label>Internal notes<textarea rows={2} value={description} onChange={e => setDescription(e.target.value)} placeholder="Context for the assigned teammate…" maxLength={2000}/></label>
       <button className="btn" disabled={busy || !title.trim()}>Create retention reminder</button>
     </form>
+    <div className="growth-inline-controls"><button type="button" className="btn btn-secondary" disabled={busy} onClick={createJourney}>Create 90-day retention sequence</button><small>Creates internal tasks for day 7, 30, 60 and 90. No automatic customer messages.</small></div>
     <h4>Retention history</h4>
     {tasks.map(task => <article className="growth-row" key={task.id}>
       <div className="growth-panel-head"><div><b>{task.title}</b><small>{task.task_type} · {task.due_at ? `Due ${new Date(task.due_at).toLocaleString()}` : 'No due date'}</small></div><span>{task.status.replace('_', ' ')}</span></div>

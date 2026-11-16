@@ -11,6 +11,7 @@ export async function POST(req:NextRequest){
   const b=await req.json();
   const name=String(b.name||'').trim().slice(0,120),phone=String(b.phone||'').trim().slice(0,40),email=String(b.email||'').trim().slice(0,160),requirement=String(b.requirement||'').trim().slice(0,1500),consent=b.consent===true;
   const conversationId=typeof b.conversationId==='string'?b.conversationId:null;
+  const clickAttribution={gclid:String(b.gclid||'').trim().slice(0,500)||null,gbraid:String(b.gbraid||'').trim().slice(0,500)||null,wbraid:String(b.wbraid||'').trim().slice(0,500)||null,utm_source:String(b.utm_source||'').trim().slice(0,160)||null,utm_medium:String(b.utm_medium||'').trim().slice(0,160)||null,utm_campaign:String(b.utm_campaign||'').trim().slice(0,160)||null,utm_term:String(b.utm_term||'').trim().slice(0,160)||null,utm_content:String(b.utm_content||'').trim().slice(0,160)||null,ad_user_data_consent:b.adUserDataConsent===true};
   const requestedSlug=String(b.slug||'').trim().toLowerCase().slice(0,100);
   if(!name||(!phone&&!email)||!requirement||!consent)return NextResponse.json({error:'Name, phone or email, requirement and contact consent are required.'},{status:400});
   const db=createClient(url,key,{auth:{persistSession:false}});
@@ -34,6 +35,19 @@ export async function POST(req:NextRequest){
   }
   if(!org)return NextResponse.json({error:'Lead capture is unavailable for this workspace.'},{status:404});
 
+  // Associate the chat enquiry with the verified request-origin website record when it matches.
+  let websiteId:string|null=null;
+  const origin=req.headers.get('origin')||req.headers.get('referer')||'';
+  try{
+   const originHost=new URL(origin).hostname.toLowerCase();
+   const {data:websiteRows}=await db.from('growth_websites').select('id,domain,website_url').eq('organization_id',org.id);
+   const matched=(websiteRows||[]).find((site:any)=>{
+    const hosts=[site.domain,site.website_url].filter(Boolean).map((value:string)=>{try{return new URL(value.includes('://')?value:`https://${value}`).hostname.toLowerCase();}catch{return value.toLowerCase();}});
+    return hosts.some((host:string)=>originHost===host||originHost===`www.${host}`||originHost.endsWith(`.${host}`));
+   });
+   websiteId=matched?.id||null;
+  }catch{}
+
   const quota=await consumeGrowthQuota(db,org.id,'leads',1,undefined,{source:'website_chat'});
   if(!quota.allowed)return NextResponse.json({error:quotaErrorMessage(quota),quota},{status:quota.reason==='quota_exceeded'?402:503});
   const textForScore=requirement.toLowerCase();
@@ -41,9 +55,11 @@ export async function POST(req:NextRequest){
   const coldWords=['just exploring','just looking','maybe later','not sure'];
   const score=Math.max(0,Math.min(100,50+(phone?10:0)+(email?5:0)+(hotWords.some(w=>textForScore.includes(w))?25:0)-(coldWords.some(w=>textForScore.includes(w))?25:0)));
   const temperature=score>=70?'hot':score<=35?'cold':'warm';
-  const {data,error}=await db.from('growth_leads').insert({organization_id:org.id,conversation_id:conversationId,name,phone:phone||null,email:email||null,requirement,source:'website_chat',consent_to_contact:true,contact_consent_at:new Date().toISOString(),contact_consent_source:'website_lead_form',contact_consent_method:'explicit_checkbox',lead_temperature:temperature,lead_score:score}).select('id,lead_score,lead_temperature').single();
+  const {data,error}=await db.from('growth_leads').insert({organization_id:org.id,website_id:websiteId,conversation_id:conversationId,name,phone:phone||null,email:email||null,requirement,source:'website_chat',consent_to_contact:true,contact_consent_at:new Date().toISOString(),contact_consent_source:'website_lead_form',contact_consent_method:'explicit_checkbox',...clickAttribution,lead_temperature:temperature,lead_score:score}).select('id,lead_score,lead_temperature').single();
   if(error)return NextResponse.json({error:'Could not save enquiry.'},{status:500});
-  try{await runLeadCreatedRules(db,org.id,{...data,id:data.id,name,phone,email,consent_to_contact:true});}catch{}
-  return NextResponse.json({success:true,leadId:data.id,leadScore:data.lead_score,leadTemperature:data.lead_temperature});
+  let automationQueued=true;
+  try{await runLeadCreatedRules(db,org.id,{...data,id:data.id,name,phone,email,consent_to_contact:true});}
+  catch(error){automationQueued=false;console.error('Lead saved but workflow enqueue failed.',{organizationId:org.id,leadId:data.id,error:error instanceof Error?error.message:'Unknown workflow enqueue error'});}
+  return NextResponse.json({success:true,leadId:data.id,leadScore:data.lead_score,leadTemperature:data.lead_temperature,automationQueued,...(!automationQueued?{automationWarning:'Your enquiry was saved, but an automated follow-up could not be queued. The workspace administrator has been alerted.'}:{})});
  }catch{return NextResponse.json({error:'Unable to submit enquiry.'},{status:500});}
 }

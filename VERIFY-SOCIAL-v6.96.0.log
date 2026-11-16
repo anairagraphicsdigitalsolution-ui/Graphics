@@ -1,0 +1,31 @@
+PASS Social account GET is tenant and role scoped
+PASS Social account API checks social-channel entitlement
+PASS Social account API returns sanitized fields and never selects credentials in GET
+PASS Account health checks Meta, Instagram, LinkedIn and YouTube APIs
+PASS Disconnect clears encrypted token and leaves a disconnected record
+PASS Account actions require a connected supported provider identity
+PASS Exact account token resolver rejects mismatched account IDs
+PASS Meta Page token validity is checked against provider rather than parent user-token expiry
+PASS Meta OAuth requests comment read and management scopes
+PASS Meta callback stores Page tokens without incorrectly copying user-token expiry
+PASS LinkedIn and YouTube OAuth accounts record initial health state
+PASS Post sync supports Facebook and Instagram provider endpoints
+PASS Post sync validates provider read scope
+PASS Best-time analytics can be filtered to the selected account
+PASS Post snapshots upsert tenant/account scoped provider IDs
+PASS Best-time recommendations use observed engagement with minimum sample count
+PASS Social comments are tenant-scoped and manager-controlled for sync
+PASS Comment sync checks platform-specific read permissions
+PASS Comment reply checks platform-specific management permission
+PASS Comment reply is atomically claimed to prevent duplicate concurrent replies
+PASS Comment reply failure is retained as retryable error state
+PASS Ambiguous comment reply outcomes are blocked from automatic retry
+PASS Social inbox is available to social-channel tenants without granting AI Employee access
+PASS Dedicated Social Management UI exposes account health, comments, analytics and unified inbox
+PASS Dashboard mounts Social Management page
+PASS Primary navigation exposes Social Media module
+PASS Database migration creates RLS-protected post and comment stores
+PASS Database migration includes token health and account health indexes
+PASS Post/comment tables revoke anon and authenticated writes
+PASS Reply claim migration allows a replying state and records claiming actor
+30 PASS, 0 FAIL

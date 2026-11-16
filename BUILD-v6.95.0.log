@@ -1,0 +1,5 @@
+Command: npm run build
+Result: BLOCKED
+Exit code: 127
+Output: sh: 1: next: not found
+Reason: node_modules is not present in the provided working source environment; dependency install / lockfile generation was not run.

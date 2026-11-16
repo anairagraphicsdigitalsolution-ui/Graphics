@@ -1,23 +1,30 @@
 import {SupabaseClient} from '@supabase/supabase-js';
 
 type WorkflowStep = {type:string; delay_minutes?:number; title?:string; description?:string; message_template?:string; subject?:string; text_template?:string};
-const safeSteps=(rule:any):WorkflowStep[]=>{
-  const configured=Array.isArray(rule.workflow_steps)?rule.workflow_steps:[];
-  if(configured.length)return configured.slice(0,12);
-  const cfg=rule.configuration||{};
-  if(rule.action_type==='create_follow_up')return [{type:'create_follow_up',title:cfg.title,description:cfg.description,delay_minutes:cfg.delay_minutes}];
-  if(rule.action_type==='notify_admin')return [{type:'notify_admin'}];
-  if(rule.action_type==='queue_whatsapp')return [{type:'queue_whatsapp',message_template:cfg.message_template}];
-  return [];
+/** Resolve the exact immutable version that the manager published. Never execute
+ * mutable draft steps for a versioned workflow. */
+async function publishedSteps(db:SupabaseClient,orgId:string,rule:any):Promise<WorkflowStep[]>{
+  const publishedVersion=Number(rule.published_version||0);
+  if(!Number.isInteger(publishedVersion)||publishedVersion<1) return [];
+  const {data:snapshot,error}=await db.from('growth_workflow_versions')
+    .select('workflow_steps,trigger_type')
+    .eq('organization_id',orgId).eq('rule_id',rule.id).eq('version',publishedVersion).maybeSingle();
+  if(error)throw error;
+  if(!snapshot)throw new Error(`Published workflow snapshot v${publishedVersion} is missing for rule ${rule.id}.`);
+  if(snapshot.trigger_type!==rule.trigger_type)throw new Error(`Published workflow trigger does not match rule ${rule.id}.`);
+  const steps=Array.isArray(snapshot.workflow_steps)?snapshot.workflow_steps.slice(0,12):[];
+  if(!steps.length)throw new Error(`Published workflow snapshot v${publishedVersion} has no executable steps.`);
+  return steps;
 };
 
 export async function runLeadCreatedRules(db:SupabaseClient,orgId:string,lead:any){
-  const {data:rules,error}=await db.from('growth_automation_rules').select('*').eq('organization_id',orgId).eq('enabled',true).eq('trigger_type','lead_created');
+  const {data:rules,error}=await db.from('growth_automation_rules').select('*').eq('organization_id',orgId).eq('enabled',true).not('published_version','is',null).eq('trigger_type','lead_created');
   if(error)throw error;
   for(const rule of rules||[]){
-    const steps=safeSteps(rule);
+    const steps=await publishedSteps(db,orgId,rule);
     if(!steps.length)continue;
-    await db.from('growth_workflow_runs').insert({organization_id:orgId,rule_id:rule.id,lead_id:lead.id,status:'queued',current_step:0,steps,context:{lead_name:lead.name||'',source:lead.source||'unknown'},next_run_at:new Date().toISOString()});
+    const {error:enqueueError}=await db.from('growth_workflow_runs').insert({organization_id:orgId,rule_id:rule.id,lead_id:lead.id,status:'queued',current_step:0,steps,context:{lead_name:lead.name||'',source:lead.source||'unknown',published_version:Number(rule.published_version)},next_run_at:new Date().toISOString()});
+    if(enqueueError)throw enqueueError;
   }
 }
 
@@ -45,10 +52,11 @@ export async function runLeadUpdatedRules(
       .select('*')
       .eq('organization_id', orgId)
       .eq('enabled', true)
+      .not('published_version', 'is', null)
       .eq('trigger_type', event.trigger);
     if (error) throw error;
     for (const rule of rules || []) {
-      const steps = safeSteps(rule);
+      const steps = await publishedSteps(db, orgId, rule);
       if (!steps.length) continue;
       const { error: enqueueError } = await db.from('growth_workflow_runs').insert({
         organization_id: orgId,
@@ -63,7 +71,8 @@ export async function runLeadUpdatedRules(
           event: event.trigger,
           changed_field: event.changedField,
           previous_value: event.oldValue,
-          current_value: event.newValue
+          current_value: event.newValue,
+          published_version: Number(rule.published_version)
         },
         next_run_at: new Date().toISOString()
       });

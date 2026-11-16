@@ -1,0 +1,7 @@
+
+Additional environment checks:
+- `node scripts/verify-syntax.cjs`: 197 TS/TSX files checked, 0 syntax errors.
+- `npm install --no-audit --no-fund`: timed out in this build environment; Next.js dependency remained unavailable.
+- `npm run build`: not completed; `sh: 1: next: not found`.
+- Supabase CLI and psql were unavailable; migration syntax was source-reviewed but not applied to a remote project.
+- Google Ads and Meta provider live OAuth/API E2E were not run because customer credentials/accounts were not supplied.

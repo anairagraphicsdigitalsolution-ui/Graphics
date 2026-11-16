@@ -44,6 +44,29 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ prov
       externalId = String(profile.sub);
       accountName = String(profile.name || profile.given_name || 'LinkedIn Member');
       metadata = { ...metadata, email: profile.email || null, picture: profile.picture || null };
+      const grantedScopes = String(token.scope || '').split(/[ ,]+/).filter(Boolean);
+      if (process.env.LINKEDIN_ORGANIZATION_ANALYTICS_ENABLED === 'true' && grantedScopes.includes('r_organization_admin')) {
+        const apiVersion = process.env.LINKEDIN_API_VERSION || '202610';
+        const memberUrn = `urn:li:person:${externalId}`;
+        const aclUrl = new URL('https://api.linkedin.com/rest/organizationAcls');
+        aclUrl.searchParams.set('q', 'roleAssignee');
+        aclUrl.searchParams.set('roleAssignee', memberUrn);
+        aclUrl.searchParams.set('state', 'APPROVED');
+        aclUrl.searchParams.set('count', '100');
+        const aclResponse = await fetch(aclUrl, { headers: { Authorization: `Bearer ${token.access_token}`, 'Linkedin-Version': apiVersion, 'X-Restli-Protocol-Version': '2.0.0' }, cache: 'no-store' });
+        const aclPayload = await aclResponse.json().catch(() => ({}));
+        if (aclResponse.ok) {
+          const organizations = (aclPayload.elements || []).filter((entry: any) => entry?.organization && entry?.state === 'APPROVED')
+            .map((entry: any) => ({ urn: String(entry.organization), role: String(entry.role || '') }))
+            .filter((entry: any) => /^urn:li:organization:\d+$/.test(entry.urn));
+          metadata = { ...metadata, organization_urns: organizations, organization_analytics_discovery: 'succeeded' };
+        } else {
+          // Do not fail basic LinkedIn publishing when the app has not been approved for organization APIs.
+          metadata = { ...metadata, organization_urns: [], organization_analytics_discovery: 'unavailable', organization_analytics_error: String(aclPayload.message || aclPayload.serviceErrorCode || 'LinkedIn organization access lookup failed.').slice(0, 300) };
+        }
+      } else {
+        metadata = { ...metadata, organization_urns: [], organization_analytics_discovery: 'not_enabled_or_not_authorized' };
+      }
     } else {
       const channelsResponse = await fetch('https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true', { headers: { Authorization: `Bearer ${token.access_token}` }, cache: 'no-store' });
       const channels = await channelsResponse.json();
@@ -78,7 +101,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ prov
     }, { onConflict: 'organization_id,provider' });
     if (vaultError) throw new Error('OAuth succeeded but central integration vault could not be updated. Re-save provider app credentials and retry.');
     const { data: existing } = await db.from('growth_social_accounts').select('id').eq('organization_id', oauth.organization_id).eq('platform', provider).eq('external_account_id', externalId).maybeSingle();
-    const row = { organization_id: oauth.organization_id, platform: provider, account_name: accountName, external_account_id: externalId, connection_status: 'connected', encrypted_credentials: encrypted, token_expires_at: token.expires_in ? new Date(Date.now() + Number(token.expires_in) * 1000).toISOString() : null, scopes: String(token.scope || '').split(' ').filter(Boolean), metadata };
+    const row = { organization_id: oauth.organization_id, platform: provider, account_name: accountName, external_account_id: externalId, connection_status: 'connected', token_health: 'healthy', last_health_check_at: new Date().toISOString(), encrypted_credentials: encrypted, token_expires_at: token.expires_in ? new Date(Date.now() + Number(token.expires_in) * 1000).toISOString() : null, scopes: String(token.scope || '').split(' ').filter(Boolean), metadata };
     const saved = existing ? await db.from('growth_social_accounts').update(row).eq('id', existing.id) : await db.from('growth_social_accounts').insert(row);
     if (saved.error) throw new Error('Provider connected, but account credentials could not be saved. Check the latest social account migration.');
     return NextResponse.redirect(new URL(`/admin/ai-growth?integration=${provider}_connected`, process.env.NEXT_PUBLIC_SITE_URL || 'https://anairagraphics.com'));

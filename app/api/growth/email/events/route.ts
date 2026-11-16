@@ -1,0 +1,4 @@
+import {NextRequest,NextResponse} from 'next/server';
+import {growthContext,requireGrowthRole} from '@/lib/growth-server';
+const json=(b:unknown,s=200)=>NextResponse.json(b,{status:s,headers:{'Cache-Control':'no-store'}});
+export async function GET(req:NextRequest){const c=await growthContext(req);if('response'in c)return c.response;const org=req.nextUrl.searchParams.get('organizationId')||'';if(!await requireGrowthRole(c.db,c.userId,org,['owner','manager','agent','editor','viewer','client']))return json({error:'Workspace permission denied.'},403);const {data,error}=await c.db.from('growth_email_provider_events').select('id,event_type,recipient_email,provider_email_id,payload,received_at,processed_at').eq('organization_id',org).order('received_at',{ascending:false}).limit(100);if(error)return json({error:'Unable to load email delivery events.'},500);return json({events:data||[]});}
