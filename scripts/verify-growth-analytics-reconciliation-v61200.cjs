@@ -34,7 +34,7 @@ const checks = [
  ['UI displays attribution variance separately from actual ledger revenue', /Revenue attribution reconciliation/.test(component) && /reconciliationVarianceByCurrency/.test(component)],
  ['UI displays campaign CPL and CAC without FX mixing', /CPL/.test(component) && /CAC/.test(component) && /perCurrency/.test(component)],
  ['Module 12 reconciliation panel is mounted in Analytics', /GrowthFinancialReconciliation/.test(shell) && /panel==='analytics'/.test(shell)],
- ['Package version and full verification include Module 12', ['6.102.0','6.103.0','6.104.0','6.105.0','6.106.0','6.108.0','6.109.0','6.110.0','6.112.0','6.113.0','6.114.0','6.115.0','6.116.0','6.118.0','6.119.0','6.120.0','6.121.0','6.122.0','6.123.0','6.124.0','6.124.1','6.124.2','6.124.3','6.124.4','6.124.5','6.124.6'].includes(pkg.version) && pkg.scripts['verify:all'].includes('verify:growth-analytics-reconciliation-v61200')],
+ ['Package version and full verification include Module 12', ['6.102.0','6.103.0','6.104.0','6.105.0','6.106.0','6.108.0','6.109.0','6.110.0','6.112.0','6.113.0','6.114.0','6.115.0','6.116.0','6.118.0','6.119.0','6.120.0','6.121.0','6.122.0','6.123.0','6.124.0','6.124.1','6.124.2','6.124.3','6.124.4','6.124.5','6.124.6','6.124.7'].includes(pkg.version) && pkg.scripts['verify:all'].includes('verify:growth-analytics-reconciliation-v61200')],
 ];
 let failed = 0;
 for (const [name, ok] of checks) { console.log(`${ok ? 'PASS' : 'FAIL'} ${name}`); if (!ok) failed++; }

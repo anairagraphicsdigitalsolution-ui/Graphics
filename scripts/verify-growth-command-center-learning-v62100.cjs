@@ -18,5 +18,5 @@ const checks=[
  ['UI communicates evidence level and human review guidance',ui.includes('group.evidence_level')&&ui.includes('group.recommendation')],
  ['UI states no automatic model training',ui.includes('No automatic model training')],
  ['learning insights remain workspace API scoped',api.includes(".eq('organization_id', orgId)")&&api.includes("requireGrowthFeature(ctx.db, ctx.userId, orgId, 'crm')")],
- ['release version is compatible and verifier registered',['6.116.0','6.118.0','6.119.0','6.120.0','6.121.0','6.122.0','6.123.0','6.124.0','6.124.1','6.124.2','6.124.3','6.124.4','6.124.5','6.124.6'].includes(pkg.version)&&pkg.scripts['verify:all'].includes('verify:growth-command-center-learning-v62100')]
+ ['release version is compatible and verifier registered',['6.116.0','6.118.0','6.119.0','6.120.0','6.121.0','6.122.0','6.123.0','6.124.0','6.124.1','6.124.2','6.124.3','6.124.4','6.124.5','6.124.6','6.124.7'].includes(pkg.version)&&pkg.scripts['verify:all'].includes('verify:growth-command-center-learning-v62100')]
 ];let fail=0;for(const [name,ok] of checks){console.log(`${ok?'PASS':'FAIL'} ${name}`);if(!ok)fail++;}console.log(`${checks.length-fail}/${checks.length} Function 8 learning checks passed`);process.exitCode=fail?1:0;

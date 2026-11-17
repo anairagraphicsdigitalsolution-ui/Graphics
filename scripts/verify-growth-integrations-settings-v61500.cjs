@@ -9,7 +9,7 @@ const workspaceUi=fs.readFileSync('components/growth-integrations-manager.tsx','
 const platformUi=fs.readFileSync('components/growth-platform-integrations-manager.tsx','utf8');
 const integrationLib=fs.readFileSync('lib/growth-integrations.ts','utf8');
 const checks=[
- ['package version is v6.105.0',['6.105.0','6.106.0','6.108.0','6.109.0','6.110.0','6.112.0','6.113.0','6.114.0','6.115.0','6.116.0','6.118.0','6.119.0','6.120.0','6.121.0','6.122.0','6.123.0','6.124.0','6.124.1','6.124.2','6.124.3','6.124.4','6.124.5','6.124.6'].includes(pkg.version)],
+ ['package version is v6.105.0',['6.105.0','6.106.0','6.108.0','6.109.0','6.110.0','6.112.0','6.113.0','6.114.0','6.115.0','6.116.0','6.118.0','6.119.0','6.120.0','6.121.0','6.122.0','6.123.0','6.124.0','6.124.1','6.124.2','6.124.3','6.124.4','6.124.5','6.124.6','6.124.7'].includes(pkg.version)],
  ['Module 15 verifier registered in full suite',pkg.scripts['verify:all'].includes('verify:growth-integrations-settings-v61500')],
  ['tenant credential version and rotation timestamp columns',migration.includes('growth_integrations')&&migration.includes('credential_version')&&migration.includes('credential_rotated_at')],
  ['platform credential lifecycle columns',migration.includes('growth_platform_integrations')&&migration.includes('last_success_at')],

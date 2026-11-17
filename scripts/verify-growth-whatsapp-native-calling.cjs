@@ -26,6 +26,7 @@ const checks=[
  ['Inbound accept uses browser SDP answer',route.includes("action === 'accept'")&&route.includes("sdp_type: 'answer'")],
  ['Inbound reject action',route.includes("action === 'reject'")],
  ['Meta pre-accept and accept sequence',route.includes("action: 'pre_accept'")&&route.includes("action: 'accept'")],
+ ['Inbound accepted response matches persisted active state',route.includes("call_status: 'active'")&&route.includes("callStatus: 'active'")],
  ['Live database column contract',route.includes('whatsapp_call_id')&&route.includes('call_metadata')&&route.includes("direction: 'outbound'")&&!route.includes("select('id,phone_number_id,provider_call_id")],
  ['Short-lived TURN credentials',route.includes('WHATSAPP_TURN_SHARED_SECRET')&&route.includes("createHmac('sha1'")],
  ['Inbound queue UI polling',page.includes('INBOUND CALL QUEUE')&&page.includes('acceptIncoming')&&page.includes('rejectIncoming')],
@@ -33,6 +34,9 @@ const checks=[
  ['Navigation entry',nav.includes('/admin/ai-growth/calling')],
  ['Permission request resolves credentials within the tenant',permissionRoute.includes('getWhatsAppCredentials(c.db,orgId,conv.channel_phone_number_id||null)')],
  ['WebRTC timeout automatically terminates unanswered media session',page.includes('45000')&&page.includes("action:'terminate'")],
+ ['active call status can be reconciled from the provider webhook',route.includes("searchParams.get('sessionId')")&&route.includes('callSession: sessionResult.data')],
+ ['browser polls and reconciles remote terminal call status',page.includes("['completed','terminated','rejected','missed','failed'].includes(providerStatus)")&&page.includes("setSessionId('')")],
+ ['inbound media timeout terminates provider call and releases browser media',page.includes('Inbound call accepted but media did not connect within 45 seconds')&&page.includes("sessionId:call.id,action:'terminate'")],
  ['SDP failure attempts provider cleanup',page.includes('catch(remoteError)')&&page.includes('sessionId:data.sessionId')],
 ];
 let failed=0;

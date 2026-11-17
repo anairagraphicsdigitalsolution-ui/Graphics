@@ -61,14 +61,23 @@ export default function WhatsAppCallingPage() {
     let live=true;
     const load=async()=>{
       try{
-        const response=await fetch(`/api/growth/whatsapp/calling/calls?organizationId=${encodeURIComponent(organizationId)}`,{cache:'no-store'});
+        const query = new URLSearchParams({ organizationId });
+        if (sessionId) query.set('sessionId', sessionId);
+        const response=await fetch(`/api/growth/whatsapp/calling/calls?${query.toString()}`,{cache:'no-store'});
         const data=await response.json();
-        if(live&&response.ok)setIncomingCalls(Array.isArray(data.inboundCalls)?data.inboundCalls:[]);
+        if(live&&response.ok){
+          setIncomingCalls(Array.isArray(data.inboundCalls)?data.inboundCalls:[]);
+          const providerStatus=String(data.callSession?.call_status||'');
+          if(sessionId&&['completed','terminated','rejected','missed','failed'].includes(providerStatus)){
+            cleanup();setCallState('idle');setSessionId('');setCallId('');
+            setStatus(providerStatus==='failed'?'WhatsApp call failed.':`WhatsApp call ended (${providerStatus}).`);
+          }
+        }
       }catch{/* transient polling failure; keep the last queue snapshot */}
     };
     void load();const timer=window.setInterval(load,2500);
     return()=>{live=false;window.clearInterval(timer);};
-  },[organizationId]);
+  },[organizationId,sessionId]);
   const loadIceServers=async()=>{
     const response=await fetch(`/api/growth/whatsapp/calling/calls?organizationId=${encodeURIComponent(organizationId)}`,{cache:'no-store'});
     const data=await response.json();
@@ -101,7 +110,7 @@ export default function WhatsAppCallingPage() {
       const response=await fetch('/api/growth/whatsapp/calling/calls',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({organizationId,sessionId:call.id,action:'accept',answerSdp:pc.localDescription?.sdp||''})});
       const data=await response.json();if(!response.ok)throw new Error(data.error||'Meta could not accept the inbound call.');
       setSessionId(call.id);setCallId(call.whatsapp_call_id);setIncomingCalls(rows=>rows.filter(row=>row.id!==call.id));setStatus('Call accepted. Establishing WhatsApp audio…');
-      callTimeout.current=window.setTimeout(()=>{if(peer.current&&peer.current.connectionState!=='connected')setStatus('Call accepted but media did not connect. End the call and check TURN configuration.');},45000);
+      callTimeout.current=window.setTimeout(async()=>{if(peer.current&&peer.current.connectionState!=='connected'){await fetch('/api/growth/whatsapp/calling/calls',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({organizationId,sessionId:call.id,action:'terminate'})}).catch(()=>null);cleanup();setCallState('idle');setSessionId('');setCallId('');setStatus('Inbound call accepted but media did not connect within 45 seconds. The call was ended; check TURN/network configuration.');}},45000);
     }catch(error){cleanup();setCallState('idle');setSessionId('');setCallId('');setStatus(error instanceof Error?error.message:'Unable to accept inbound call.');}
     finally{setBusy(false);}
   };

@@ -18,6 +18,10 @@ const checks = [
  ['private bucket allows image OCR types',migration.includes("'image/jpeg','image/png','image/webp'") && migration.includes('public = false')],
  ['UI advertises OCR supported formats',ui.includes('.jpg,.jpeg,.png,.webp') && ui.includes('Scanned PDF and JPG/PNG/WEBP OCR')],
  ['native extraction remains supported',extractor.includes('function extractPdf') && extractor.includes('extractKnowledgeText')],
+ ['mixed/scanned PDF page-density heuristic is enabled',extractor.includes('function shouldOcrPdf') && route.includes('shouldOcrPdf(bytes, extracted.text)')],
+ ['OCR metadata is displayed to workspace users',ui.includes('doc.extraction_method') && ui.includes('doc.ocr_model')],
+ ['OCR preserves line breaks for tables and headings',ocr.includes(".replace(/\\r\\n?/g, '\\n')") && ocr.includes(".replace(/\\n{3,}/g, '\\n\\n')")],
+ ['OCR minimum readable text check ignores whitespace',ocr.includes(".replace(/\\s/g, '').length < 20")],
 ];
 let failed=0; for(const [name,ok] of checks){console.log(`${ok?'PASS':'FAIL'} ${name}`);if(!ok)failed++;}
 console.log(`\n${checks.length-failed} PASS / ${failed} FAIL`); if(failed)process.exit(1);

@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { apiJson, growthContext, requireGrowthRole, requireGrowthFeature } from '@/lib/growth-server';
+import { evaluateGrowthSendPolicy, evaluateLeadChannelSuppression } from '@/lib/growth-send-policy';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
@@ -12,15 +13,18 @@ export async function GET(req: NextRequest) {
   if (error) return apiJson({ error: 'Action history unavailable. Apply the Command Action Execution migration.' }, 503);
   const actions = data || [];
   const taskIds = actions.map((a:any) => a.result?.task_id).filter((id:any): id is string => typeof id === 'string');
-  const [taskResult, feedbackResult] = await Promise.all([
+  const jobIds = actions.map((a:any) => a.result?.job_id).filter((id:any): id is string => typeof id === 'string');
+  const [taskResult, feedbackResult, jobResult] = await Promise.all([
     taskIds.length ? ctx.db.from('growth_tasks').select('id,status,completed_at,updated_at').eq('organization_id', orgId).in('id', taskIds) : Promise.resolve({ data: [], error: null } as any),
-    ctx.db.from('growth_command_action_feedback').select('id,action_id,feedback_type,rating,notes,created_by,created_at').eq('organization_id', orgId).order('created_at', { ascending: false }).limit(250)
+    ctx.db.from('growth_command_action_feedback').select('id,action_id,job_id,feedback_type,rating,notes,created_by,created_at').eq('organization_id', orgId).order('created_at', { ascending: false }).limit(250),
+    jobIds.length ? ctx.db.from('growth_jobs').select('id,job_type,status,run_at,completed_at,last_error,created_at').eq('organization_id', orgId).in('id', jobIds) : Promise.resolve({ data: [], error: null } as any)
   ]);
-  if (taskResult.error || feedbackResult.error) return apiJson({ error: 'Action outcome tracking is unavailable. Apply the Function 7 migration.' }, 503);
+  if (taskResult.error || feedbackResult.error || jobResult.error) return apiJson({ error: 'Action outcome tracking is unavailable. Apply the Function 7 migration.' }, 503);
   const taskById = new Map((taskResult.data || []).map((t:any) => [t.id, t]));
+  const jobById = new Map((jobResult.data || []).map((j:any) => [j.id, j]));
   const feedbackByAction = new Map<string, any[]>();
   for (const f of feedbackResult.data || []) { const list = feedbackByAction.get(f.action_id) || []; list.push(f); feedbackByAction.set(f.action_id, list); }
-  const enriched = actions.map((a:any) => ({ ...a, task_outcome: a.result?.task_id ? taskById.get(a.result.task_id) || null : null, feedback: feedbackByAction.get(a.id) || [] }));
+  const enriched = actions.map((a:any) => ({ ...a, task_outcome: a.result?.task_id ? taskById.get(a.result.task_id) || null : null, external_job: a.result?.job_id ? jobById.get(a.result.job_id) || null : null, feedback: feedbackByAction.get(a.id) || [] }));
   const outcomes = enriched.reduce((acc:any, a:any) => { const status = a.task_outcome?.status; if (status === 'done') acc.completed++; else if (status === 'cancelled') acc.cancelled++; else if (status) acc.open++; if (a.status === 'executed') acc.executed++; return acc; }, { executed: 0, completed: 0, open: 0, cancelled: 0 });
   // Descriptive governance metrics over the same bounded, workspace-scoped history.
   const statusCounts = enriched.reduce((acc:any, a:any) => { acc[a.status] = (acc[a.status] || 0) + 1; return acc; }, {} as Record<string, number>);
@@ -81,16 +85,44 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const ctx = await growthContext(req); if ('response' in ctx) return ctx.response;
   try {
-    const b = await req.json(), orgId = String(b.organizationId || ''), title = String(b.title || '').trim().slice(0,160), description = String(b.description || '').trim().slice(0,2000);
+    const b = await req.json(), orgId = String(b.organizationId || ''), actionType = String(b.actionType || 'create_task'), title = String(b.title || '').trim().slice(0,160), description = String(b.description || '').trim().slice(0,2000);
     if (!await requireGrowthRole(ctx.db, ctx.userId, orgId, ['owner','manager'])) return apiJson({ error: 'Owner or manager permission required to propose an executable action.' }, 403);
     if (!await requireGrowthFeature(ctx.db, ctx.userId, orgId, 'crm')) return apiJson({ error: 'CRM is not included in this workspace plan.' }, 402);
+    if (!['create_task','send_email','send_whatsapp'].includes(actionType)) return apiJson({ error: 'Unsupported Command Center action type.' }, 400);
     if (!title) return apiJson({ error: 'Action title is required.' }, 400);
     const dueAt = b.dueAt ? new Date(String(b.dueAt)) : null;
     if (dueAt && !Number.isFinite(dueAt.getTime())) return apiJson({ error: 'Due date is invalid.' }, 400);
-    const { data, error } = await ctx.db.from('growth_command_actions').insert({ organization_id: orgId, action_type: 'create_task', title, description, due_at: dueAt?.toISOString() || null, status: 'pending_approval', created_by: ctx.userId }).select('*').single();
-    if (error) return apiJson({ error: 'Could not save action proposal.' }, 503);
+    let actionPayload: Record<string, unknown> = {};
+    if (actionType === 'send_email' || actionType === 'send_whatsapp') {
+      const leadId = String(b.leadId || ''), body = String(b.message || '').trim();
+      if (!leadId || !body) return apiJson({ error: 'Select a lead and provide message content for an external communication action.' }, 400);
+      const channel = actionType === 'send_email' ? 'email' : 'whatsapp';
+      if (!await requireGrowthFeature(ctx.db, ctx.userId, orgId, channel === 'email' ? 'ai_employee' : 'whatsapp')) return apiJson({ error: `${channel} is not included in this workspace plan.` }, 402);
+      const { data: lead, error: leadError } = await ctx.db.from('growth_leads').select('id,email,phone,consent_to_contact,contact_opted_out_at,channel_consents,channel_suppressions,email_bounced_at,email_complained_at,conversation_id').eq('id', leadId).eq('organization_id', orgId).maybeSingle();
+      if (leadError || !lead) return apiJson({ error: 'Selected lead was not found in this workspace.' }, 404);
+      const suppression = evaluateLeadChannelSuppression(lead, channel);
+      if (!suppression.allowed) return apiJson({ error: suppression.reason }, 403);
+      const { data: orgPolicy, error: policyError } = await ctx.db.from('growth_organizations').select('communication_policy').eq('id', orgId).maybeSingle();
+      if (policyError) return apiJson({ error: 'Workspace communication policy is unavailable.' }, 503);
+      const sendPolicy = evaluateGrowthSendPolicy(orgPolicy?.communication_policy, channel);
+      if (!sendPolicy.allowed) return apiJson({ error: sendPolicy.reason }, 409);
+      if (actionType === 'send_email') {
+        if (!lead.email || lead.email_bounced_at || lead.email_complained_at) return apiJson({ error: 'Lead email is missing, bounced or complained.' }, 409);
+        actionPayload = { lead_id: leadId, subject: String(b.subject || title).trim().slice(0,180), text: body.slice(0,10000) };
+      } else {
+        const whatsappDigits = String(lead.phone || '').replace(/\D/g, '');
+        if (whatsappDigits.length < 8 || whatsappDigits.length > 15 || !lead.conversation_id) return apiJson({ error: 'WhatsApp free-form action requires a phone number and customer conversation. Use the approved template workflow outside the 24-hour window.' }, 409);
+        const { data: conversation } = await ctx.db.from('growth_conversations').select('messages,channel').eq('id', lead.conversation_id).eq('organization_id', orgId).maybeSingle();
+        const lastInbound = [...(Array.isArray(conversation?.messages) ? conversation.messages : [])].reverse().find((m:any) => m?.role === 'user' && m?.at);
+        const inboundAt = lastInbound?.at ? Date.parse(lastInbound.at) : NaN;
+        if (conversation?.channel !== 'whatsapp' || !Number.isFinite(inboundAt) || Date.now() - inboundAt > 24*60*60*1000) return apiJson({ error: 'WhatsApp free-form action requires an active 24-hour customer-service window. Use an approved template otherwise.' }, 409);
+        actionPayload = { lead_id: leadId, message: body.slice(0,3500) };
+      }
+    }
+    const { data, error } = await ctx.db.from('growth_command_actions').insert({ organization_id: orgId, action_type: actionType, action_payload: actionPayload, title, description, due_at: dueAt?.toISOString() || null, status: 'pending_approval', created_by: ctx.userId }).select('id,organization_id,action_type,title,description,due_at,status,created_by,created_at').single();
+    if (error) return apiJson({ error: 'Could not save action proposal. Apply the Command Center external action migration.' }, 503);
     await ctx.db.from('growth_platform_audit_events').insert({ organization_id: orgId, actor_user_id: ctx.userId, event_type: 'growth.command_action.proposed', metadata: { action_id: data.id, action_type: data.action_type } });
-    return apiJson({ success: true, action: data, notice: 'Proposal saved. No task has been created yet; approval is required.' }, 201);
+    return apiJson({ success: true, action: data, notice: actionType === 'create_task' ? 'Task proposal saved. Independent approval is required before task creation.' : 'External communication proposal saved. It will only be queued after independent approval and explicit execution.' }, 201);
   } catch { return apiJson({ error: 'Invalid action proposal.' }, 400); }
 }
 
@@ -108,12 +140,26 @@ export async function PATCH(req: NextRequest) {
       if (rating !== null && (!Number.isInteger(rating) || rating < 1 || rating > 5)) return apiJson({ error: 'Rating must be a whole number from 1 to 5.' }, 400);
       const { data: action, error: actionError } = await ctx.db.from('growth_command_actions').select('id,status,result').eq('id', id).eq('organization_id', orgId).maybeSingle();
       if (actionError || !action) return apiJson({ error: 'Action not found in this workspace.' }, 404);
-      if (action.status !== 'executed' || !action.result?.task_id) return apiJson({ error: 'Feedback is available after an action has executed.' }, 409);
-      const { data: task } = await ctx.db.from('growth_tasks').select('id').eq('id', action.result.task_id).eq('organization_id', orgId).maybeSingle();
-      if (!task) return apiJson({ error: 'Linked CRM task was not found in this workspace.' }, 409);
-      const { data: feedback, error: feedbackError } = await ctx.db.from('growth_command_action_feedback').insert({ organization_id: orgId, action_id: id, task_id: task.id, feedback_type: feedbackType, rating, notes: String(b.notes || '').trim().slice(0,1200) || null, created_by: ctx.userId }).select('id,action_id,feedback_type,rating,notes,created_by,created_at').single();
-      if (feedbackError) return apiJson({ error: 'Could not save action feedback. Apply the Function 7 migration.' }, 503);
-      await ctx.db.from('growth_platform_audit_events').insert({ organization_id: orgId, actor_user_id: ctx.userId, event_type: 'growth.command_action.feedback_recorded', metadata: { action_id: id, feedback_id: feedback.id, feedback_type: feedbackType, rating } });
+      if (action.status !== 'executed') return apiJson({ error: 'Feedback is available after an action has executed.' }, 409);
+      const taskId = typeof action.result?.task_id === 'string' ? action.result.task_id : null;
+      const jobId = typeof action.result?.job_id === 'string' ? action.result.job_id : null;
+      if (!taskId && !jobId) return apiJson({ error: 'This action has no linked outcome to review.' }, 409);
+      let task: { id: string } | null = null;
+      let job: { id: string; status: string } | null = null;
+      if (taskId) {
+        const { data, error } = await ctx.db.from('growth_tasks').select('id').eq('id', taskId).eq('organization_id', orgId).maybeSingle();
+        if (error || !data) return apiJson({ error: 'Linked CRM task was not found in this workspace.' }, 409);
+        task = data;
+      }
+      if (jobId) {
+        const { data, error } = await ctx.db.from('growth_jobs').select('id,status').eq('id', jobId).eq('organization_id', orgId).maybeSingle();
+        if (error || !data) return apiJson({ error: 'Linked communication job was not found in this workspace.' }, 409);
+        if (!['succeeded', 'failed'].includes(data.status)) return apiJson({ error: 'Communication outcome feedback is available after the worker records a succeeded or failed result.' }, 409);
+        job = data;
+      }
+      const { data: feedback, error: feedbackError } = await ctx.db.from('growth_command_action_feedback').insert({ organization_id: orgId, action_id: id, task_id: task?.id || null, job_id: job?.id || null, feedback_type: feedbackType, rating, notes: String(b.notes || '').trim().slice(0,1200) || null, created_by: ctx.userId }).select('id,action_id,job_id,feedback_type,rating,notes,created_by,created_at').single();
+      if (feedbackError) return apiJson({ error: 'Could not save action feedback. Apply the v6.129.1 external feedback migration.' }, 503);
+      await ctx.db.from('growth_platform_audit_events').insert({ organization_id: orgId, actor_user_id: ctx.userId, event_type: 'growth.command_action.feedback_recorded', metadata: { action_id: id, feedback_id: feedback.id, task_id: task?.id || null, job_id: job?.id || null, feedback_type: feedbackType, rating } });
       return apiJson({ success: true, feedback, notice: 'Outcome feedback saved for the AI learning and review loop.' }, 201);
     }
     if (!id || !['approve','reject','execute'].includes(operation)) return apiJson({ error: 'Action ID and supported operation are required.' }, 400);
@@ -135,18 +181,18 @@ export async function PATCH(req: NextRequest) {
       return apiJson({ success: true, action: data, decision, notice: operation === 'approve' ? 'Independent approval recorded. The action is ready for its separately controlled execution step.' : 'Proposal rejected with a recorded reason and audit event.' });
     }
     if (action.status !== 'approved') return apiJson({ error: 'Only approved actions can execute.' }, 409);
-    // The database function locks the proposal and creates the task + execution ledger
-    // update in one transaction. A unique workflow_step_key makes retries/concurrent
-    // requests idempotent without relying on a text search in task descriptions.
+    // Atomic RPC locks the approved proposal and either creates an internal task or
+    // queues a consent-checked external communication job with a deterministic key.
     const { data: execution, error: executionError } = await ctx.db.rpc('execute_growth_command_action', {
       p_organization_id: orgId, p_action_id: id, p_actor_id: ctx.userId
     });
-    if (executionError || !execution?.success) return apiJson({ error: execution?.error || 'Approved action could not be executed. No duplicate task was created.' }, execution?.status || 503);
-    const taskId = execution.task_id;
+    if (executionError || !execution?.success) return apiJson({ error: execution?.error || 'Approved action could not be executed or queued.' }, execution?.status || 503);
+    const taskId = execution.task_id || null, jobId = execution.job_id || null;
     const { data, error } = await ctx.db.from('growth_command_actions').select('*').eq('id', id).eq('organization_id', orgId).maybeSingle();
-    if (error || !data) return apiJson({ error: 'Task was created but action history could not be reloaded. Refresh to reconcile.' }, 503);
-    const { error: auditError } = await ctx.db.from('growth_platform_audit_events').insert({ organization_id: orgId, actor_user_id: ctx.userId, event_type: 'growth.command_action.executed', metadata: { action_id: id, task_id: taskId } });
-    if (auditError) return apiJson({ success: true, action: data, taskId, warning: 'Task was created, but the audit event could not be recorded. Contact an administrator.' }, 200);
-    return apiJson({ success: true, action: data, taskId, notice: execution.already_executed ? 'This approved action was already executed; the existing CRM task was returned.' : 'Internal CRM task created. No external message, campaign or payment action was performed.' });
+    if (error || !data) return apiJson({ error: 'Action was executed but history could not be reloaded. Refresh to reconcile.' }, 503);
+    const { error: auditError } = await ctx.db.from('growth_platform_audit_events').insert({ organization_id: orgId, actor_user_id: ctx.userId, event_type: 'growth.command_action.executed', metadata: { action_id: id, task_id: taskId, job_id: jobId, execution: execution.execution } });
+    if (auditError) return apiJson({ success: true, action: data, taskId, jobId, warning: 'Action was executed/queued, but the audit event could not be recorded. Contact an administrator.' }, 200);
+    const notice = jobId ? (execution.already_executed ? 'This approved external action was already queued; the existing job was returned.' : 'Approved external communication queued. The worker will re-check consent, suppression, workspace policy and quota before provider delivery.') : (execution.already_executed ? 'This approved task was already executed; the existing CRM task was returned.' : 'Internal CRM task created.');
+    return apiJson({ success: true, action: data, taskId, jobId, notice });
   } catch { return apiJson({ error: 'Command action operation failed.' }, 400); }
 }

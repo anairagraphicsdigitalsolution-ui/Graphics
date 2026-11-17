@@ -1,7 +1,7 @@
 const fs=require('node:fs');
 const api=fs.readFileSync('app/api/growth/command-actions/route.ts','utf8');
 const ui=fs.readFileSync('components/growth-command-action-execution.tsx','utf8');
-const sql=fs.readFileSync('supabase/migrations/20261116093000_growth_command_action_governance_v62200.sql','utf8');
+const sql=fs.readFileSync('supabase/migrations/20261117034519_growth_command_action_governance_v62200.sql','utf8');
 const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));
 const checks=[
  ['review decision uses a database transaction RPC',api.includes("rpc('review_growth_command_action'")],
@@ -20,5 +20,5 @@ const checks=[
  ['UI displays approval and rejection rationale',ui.includes('item.approval_note')&&ui.includes('item.rejection_reason')],
  ['migration constrains rationale lengths',sql.includes('char_length(approval_note) <= 1200')&&sql.includes('char_length(rejection_reason) between 1 and 1200')],
  ['workspace role and CRM entitlement checks remain enforced',api.includes("requireGrowthRole(ctx.db, ctx.userId, orgId, ['owner','manager'])")&&api.includes("requireGrowthFeature(ctx.db, ctx.userId, orgId, 'crm')")],
- ['release version and full verifier registration are current',['6.118.0','6.119.0','6.120.0','6.121.0','6.122.0','6.123.0','6.124.0','6.124.1','6.124.2','6.124.3','6.124.4','6.124.5','6.124.6'].includes(pkg.version),'6.119.0'&&pkg.scripts['verify:all'].includes('verify:growth-command-center-governance-v62200')]
+ ['release version and full verifier registration are current',['6.118.0','6.119.0','6.120.0','6.121.0','6.122.0','6.123.0','6.124.0','6.124.1','6.124.2','6.124.3','6.124.4','6.124.5','6.124.6','6.124.7'].includes(pkg.version),'6.119.0'&&pkg.scripts['verify:all'].includes('verify:growth-command-center-governance-v62200')]
 ];let fail=0;for(const [name,ok] of checks){console.log(`${ok?'PASS':'FAIL'} ${name}`);if(!ok)fail++;}console.log(`${checks.length-fail}/${checks.length} Function 9 governance checks passed`);process.exitCode=fail?1:0;

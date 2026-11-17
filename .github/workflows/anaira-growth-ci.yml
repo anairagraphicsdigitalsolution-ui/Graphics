@@ -17,7 +17,7 @@ concurrency:
 jobs:
   verify-and-build:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     env:
       # Build-time public placeholders only. Never use production credentials here.
       NEXT_PUBLIC_SUPABASE_URL: ""
@@ -26,13 +26,37 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Install dependencies
-        run: npm install --no-audit --no-fund
+
+      # Bootstrap a deterministic lockfile from this exact package.json.
+      # The generated file is uploaded below so it can be reviewed and committed.
+      - name: Generate dependency lockfile
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+
+      - name: Clean reproducible dependency install
+        run: npm ci --no-audit --no-fund
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Run TypeScript typecheck
+        run: npm run typecheck
+
       - name: Run static and regression verification
         run: npm run verify:all
+
       - name: Run production build
         run: npm run build
+
+      - name: Upload generated dependency lockfile
+        if: always() && hashFiles('package-lock.json') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: anaira-growth-engine-v6.124.7-package-lock
+          path: package-lock.json
+          if-no-files-found: error
+          retention-days: 14

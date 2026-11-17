@@ -4,7 +4,7 @@ const nav=fs.readFileSync('components/growth-primary-nav.tsx','utf8');
 const css=fs.readFileSync('app/globals.css','utf8');
 const layout=fs.readFileSync('app/admin/ai-growth/layout.tsx','utf8');
 const checks=[
- ['release version is v6.124.0',['6.124.0','6.124.1','6.124.2','6.124.3','6.124.4','6.124.5','6.124.6'].includes(pkg.version),'6.124.1','6.124.2','6.124.3','6.124.4','6.124.5','6.124.6'],
+ ['release version is v6.124.0',['6.124.0','6.124.1','6.124.2','6.124.3','6.124.4','6.124.5','6.124.6','6.124.7'].includes(pkg.version),'6.124.1','6.124.2','6.124.3','6.124.4','6.124.5','6.124.6'],
  ['design verifier registered in full suite',pkg.scripts['verify:all'].includes('verify:growth-workspace-design-v61240')],
  ['desktop navigation is grouped by business workflow',['COMMAND','INTELLIGENCE','SALES & CUSTOMER','MARKETING & CHANNELS','AUTOMATION','ANALYTICS','WORKSPACE'].every(x=>nav.includes(`label:'${x}'`))],
  ['all primary workspace routes retained',['/admin/ai-growth','/admin/ai-growth/overview','/admin/ai-growth/intelligence','/admin/ai-growth/crm','/admin/ai-growth/marketing','/admin/ai-growth/social','/admin/ai-growth/campaigns','/admin/ai-growth/integrations','/admin/ai-growth/analytics','/admin/ai-growth/automation/schedules'].every(x=>nav.includes(x))],

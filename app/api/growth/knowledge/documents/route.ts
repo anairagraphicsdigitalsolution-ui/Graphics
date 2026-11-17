@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { extractKnowledgeText } from '@/lib/growth-knowledge-extract.js';
+import { extractKnowledgeText, shouldOcrPdf } from '@/lib/growth-knowledge-extract.js';
 import { createKnowledgeEmbeddings, knowledgeEmbeddingModel } from '@/lib/growth-knowledge-embeddings';
 import { extractKnowledgeOcr } from '@/lib/growth-knowledge-ocr';
 import { apiJson, growthContext, requireGrowthFeature, requireGrowthRole } from '@/lib/growth-server';
@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
           const ocr = await extractKnowledgeOcr(ctx.db, { bytes, fileName: file.name, mimeType, organizationId: orgId });
           extracted = { text: ocr.text, mimeType }; extractionMethod = 'ocr'; ocrModel = ocr.model;
         }
-        if (extension === 'pdf' && extracted.text.length < 80) {
+        if (extension === 'pdf' && shouldOcrPdf(bytes, extracted.text)) {
           const ocr = await extractKnowledgeOcr(ctx.db, { bytes, fileName: file.name, mimeType, organizationId: orgId });
           extracted = { text: ocr.text, mimeType }; extractionMethod = 'ocr'; ocrModel = ocr.model;
         }

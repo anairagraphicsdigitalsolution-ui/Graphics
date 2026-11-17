@@ -15,5 +15,5 @@ const checks=[
  ['UI displays governance KPI cards and reviewer activity',ui.includes('AI Action Governance &amp; Performance')&&ui.includes('Reviewer activity')],
  ['UI displays execution failure reasons and history limitation',ui.includes('Execution failure reasons')&&ui.includes('History limit reached; metrics may be partial.')],
  ['UI clarifies operational execution is not business impact',ui.includes('not business impact')],
- ['release version and verifier registration are current',['6.118.0','6.119.0','6.120.0','6.121.0','6.122.0','6.123.0','6.124.0','6.124.1','6.124.2','6.124.3','6.124.4','6.124.5','6.124.6'].includes(pkg.version),'6.119.0'&&pkg.scripts['verify:all'].includes('verify:growth-command-center-performance-v62300')]
+ ['release version and verifier registration are current',['6.118.0','6.119.0','6.120.0','6.121.0','6.122.0','6.123.0','6.124.0','6.124.1','6.124.2','6.124.3','6.124.4','6.124.5','6.124.6','6.124.7'].includes(pkg.version),'6.119.0'&&pkg.scripts['verify:all'].includes('verify:growth-command-center-performance-v62300')]
 ];let fail=0;for(const [name,ok] of checks){console.log(`${ok?'PASS':'FAIL'} ${name}`);if(!ok)fail++;}console.log(`${checks.length-fail}/${checks.length} Function 10 governance performance checks passed`);process.exitCode=fail?1:0;

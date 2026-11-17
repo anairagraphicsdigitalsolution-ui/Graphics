@@ -1,0 +1,131 @@
+PASS retention outreach route is tenant scoped
+PASS CRM role and feature checks guard read/write
+PASS won customers only can receive retention touchpoints
+PASS segmentation uses CRM activity recency
+PASS segmentation clearly disclaims predictive churn model
+PASS customer and activity query limits are explicit
+PASS email consent and suppression are evaluated before approval
+PASS each supported channel exposes explicit eligibility and block reasons
+PASS touchpoint draft has bounded types and future schedule
+PASS drafts do not send automatically
+PASS approval queues idempotent email, WhatsApp-template or SMS jobs
+PASS approval records actor and audit timeline
+PASS existing active provider jobs are reconciled without duplicate queueing
+PASS already-succeeded jobs reconcile touchpoint state without re-sending
+PASS uncertain external outcomes block automatic retry
+PASS SMS retries reset only safe non-delivered message states
+PASS accepted or uncertain SMS records cannot be sent twice
+PASS cancel action cancels only eligible jobs
+PASS touchpoint table has tenant foreign keys and bounded states
+PASS retention migration expands channels and stores approved WhatsApp template reference
+PASS touchpoint table is service-role only with RLS enabled
+PASS touchpoint scheduling and lead history indexes exist
+PASS worker success marks email, WhatsApp and SMS retention touchpoints sent
+PASS worker terminal failure marks all channel retention touchpoints failed
+PASS worker send_email rechecks explicit email consent
+PASS worker enforces contact suppression and quiet-hours policy
+PASS review email requests now resolve a CRM contact before queueing
+PASS review email requests use worker queue rather than direct provider fetch
+PASS worker updates review request lifecycle after dispatch
+PASS retention UI shows engaged, at-risk and dormant segments
+PASS retention UI offers email, approved WhatsApp template and SMS channels
+PASS retention UI provides approval and cancel controls
+PASS retention UI clearly states no automatic messaging
+PASS retention UI loads approved WhatsApp templates and displays channel eligibility
+PASS dashboard links to Customer Retention module
+PASS release package version is 6.103.0
+PASS full verification includes Module 13 verifier
+Module 13 verification: 37/37 PASS
+
+=== TypeScript/TSX syntax scan ===
+Checked 249 TS/TSX source files; 0 syntax errors.
+
+=== Workflow worker regression ===
+PASS workflow condition steps are accepted by API validation
+PASS workflow conditions restrict fields to lead temperature, status and source
+PASS workflow conditions restrict comparison operators
+PASS workflow condition false branch skips configured steps
+PASS workflow condition reads tenant-scoped lead fields
+PASS workflow builder exposes condition step
+PASS workflow WhatsApp steps enqueue a worker-supported job
+PASS WhatsApp worker checks active consent
+PASS WhatsApp worker blocks opted-out leads
+PASS WhatsApp worker requires a linked customer conversation
+PASS WhatsApp worker enforces the 24-hour service window
+PASS email worker checks active consent
+PASS approved WhatsApp template worker is routed
+PASS template worker rejects non-approved templates
+PASS template worker blocks opt-outs
+PASS workflow template step requires an approved template
+PASS template send API requires manager approval role
+PASS template registry enforces tenant scoping
+PASS template approval requires external provider confirmation
+PASS template API rejects non-simple categories
+PASS Ads advisor uses only synced organization snapshots
+PASS Ads advisor never changes campaign budget or status
+PASS Ads advisor flags low CTR
+PASS Ads advisor flags spend without clicks
+PASS Ads advisor compares campaign history
+PASS YouTube status route is organization-scoped
+PASS YouTube status route requires connected YouTube channel
+PASS YouTube status route refreshes expired OAuth token
+PASS YouTube status route requests processing details
+PASS YouTube status route reports provider processing failure
+PASS YouTube resumable session URL is encrypted at rest
+PASS YouTube resumable session is tenant and content scoped
+PASS YouTube upload probes remote acknowledged range before resuming
+PASS YouTube upload sends bounded byte ranges
+PASS YouTube worker persists byte offset after each chunk
+PASS YouTube worker requeues partial upload without consuming retry attempts
+PASS YouTube worker records provider video ID for idempotent completion
+PASS LinkedIn image upload uses initializeUpload
+PASS LinkedIn image upload validates MIME type
+PASS LinkedIn image upload enforces 10 MB limit
+PASS LinkedIn image post attaches uploaded image URN
+PASS LinkedIn carousel is not silently truncated
+PASS LinkedIn carousel enforces 2–20 image requirement
+PASS LinkedIn multi-image post uses official multiImage schema
+PASS LinkedIn multi-image assets are individually registered
+PASS Unified analytics loads social and ads snapshots
+PASS Unified analytics keeps metric definitions and currencies separate
+PASS Unified analytics selects latest snapshot per account
+PASS Unified analytics reports ads provider units without currency inference
+PASS YouTube Analytics route is organization-scoped
+PASS YouTube Analytics requires analytics OAuth scope
+PASS YouTube Analytics refreshes expired Google credentials
+PASS YouTube Analytics requests channel report metrics
+PASS YouTube Analytics limits reporting periods
+PASS YouTube Analytics UI is integrated in Growth Control Center
+PASS workflow API allows lead status-change trigger
+PASS workflow API allows lead temperature-change trigger
+PASS status-change workflows enqueue only on actual transitions
+PASS temperature-change workflows enqueue only on actual transitions
+PASS lead update route reads previous tenant-scoped values
+PASS lead update route invokes transition workflow runner
+PASS Growth Control Center exposes lead-created trigger
+PASS Growth Control Center exposes lead-status-changed trigger
+PASS Growth Control Center exposes lead-temperature-changed trigger
+PASS workflow form submits the selected trigger instead of hardcoding lead-created
+
+=== Send policy regression ===
+PASS tenant communication policy column
+PASS contact channel suppression column
+PASS quiet-hours timezone evaluated using IANA timezone
+PASS overnight quiet-hours window handled
+PASS all-day quiet-hours window handled
+PASS weekday allowlist supported
+PASS channel disable policy enforced
+PASS global opt-out blocks channel
+PASS channel consent remains mandatory
+PASS per-channel suppression overrides consent
+PASS email bounce and complaint suppression
+PASS policy settings require owner or manager
+PASS policy settings validate IANA timezone
+PASS worker defers jobs during quiet hours
+PASS worker checks send policy before provider dispatch markers
+PASS app/api/growth/whatsapp/send/route.ts enforces channel policy
+PASS app/api/growth/whatsapp/templates/send/route.ts enforces channel policy
+PASS app/api/growth/email/route.ts enforces channel policy
+PASS app/api/growth/voice-calls/route.ts enforces channel policy
+
+RESULT 19 PASS / 0 FAIL

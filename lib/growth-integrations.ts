@@ -78,13 +78,13 @@ export async function getWorkspaceAccessToken(
   const clientId = app.client_id || app.app_id;
   const clientSecret = app.client_secret || app.app_secret || app.app_id_secret;
   if (!clientId || !clientSecret) throw new Error(`${provider} access token expired. Add OAuth app credentials and reconnect.`);
+  // Meta and Instagram tokens return above: they are long-lived page/business
+  // tokens and must not enter the OAuth refresh-token flow below. At this point
+  // TypeScript correctly narrows provider to google | youtube | linkedin.
   let endpoint = 'https://oauth2.googleapis.com/token';
-  let body: URLSearchParams;
-  // Meta and Instagram tokens returned above; only Google, YouTube and LinkedIn
-  // reach this refresh path, so use their refresh-token grant here.
   if (!credentials.refresh_token) throw new Error(`${provider} access token expired and no refresh token is available. Reconnect the account.`);
   if (provider === 'linkedin') endpoint = 'https://www.linkedin.com/oauth/v2/accessToken';
-  body = new URLSearchParams({ grant_type: 'refresh_token', refresh_token: credentials.refresh_token, client_id: clientId, client_secret: clientSecret });
+  const body = new URLSearchParams({ grant_type: 'refresh_token', refresh_token: credentials.refresh_token, client_id: clientId, client_secret: clientSecret });
   const response = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body, cache: 'no-store', signal: AbortSignal.timeout(15000) });
   const payload: any = await response.json().catch(() => ({}));
   if (!response.ok || !payload.access_token) throw new Error(String(payload.error_description || payload.error || `${provider} token refresh failed.`));

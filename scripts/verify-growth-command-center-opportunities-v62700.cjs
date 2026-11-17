@@ -20,7 +20,7 @@ const checks = [
   ['client renders opportunity cards', component.includes('result.opportunities') && component.includes('Business Opportunities')],
   ['client marks approval requirement', component.includes('APPROVAL REQUIRED')],
   ['client links to existing CRM and campaign pages', route.includes("'/admin/ai-growth/crm'") && route.includes("'/admin/ai-growth/campaigns'")],
-  ['release version is current', ['6.124.0','6.124.1','6.124.2','6.124.3','6.124.4','6.124.5','6.124.6'].includes(pkg.version),'6.124.1','6.124.2','6.124.3','6.124.4','6.124.5','6.124.6'],
+  ['release version is current', ['6.124.0','6.124.1','6.124.2','6.124.3','6.124.4','6.124.5','6.124.6','6.124.7'].includes(pkg.version),'6.124.1','6.124.2','6.124.3','6.124.4','6.124.5','6.124.6'],
   ['verifier is registered in full suite', pkg.scripts['verify:all'].includes('verify:growth-command-center-opportunities-v62700')],
 ];
 let failed = 0;

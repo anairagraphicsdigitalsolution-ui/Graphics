@@ -492,3 +492,10 @@ Adds immutable tenant-scoped workflow version history, restore-as-new-version, s
 - Syntax: 118 TS/TSX files, zero syntax errors.
 - Live Supabase workflow migrations and access controls verified.
 - Full Next.js build and Vercel deployment not certified in this environment.
+
+
+## v6.124.7 — Customer Retention multi-channel dispatch
+- Retention Center supports manager-approved email, approved WhatsApp template and SMS touchpoints.
+- Every channel rechecks explicit channel consent, opt-out/suppression, plan entitlement and workspace send policy in the worker.
+- Apply `supabase/migrations/20261117060000_growth_retention_multichannel_v61310.sql` before using WhatsApp/SMS retention drafts.
+- Configure Resend, WhatsApp and Twilio credentials in the relevant workspace integrations before approving live delivery.

@@ -42,7 +42,7 @@ const checks=[
  ['Migration enables RLS and service-role-only SMS event data',/enable row level security/.test(migration)&&/revoke all on public\.growth_sms_provider_events from public,anon,authenticated/.test(migration)],
  ['Migration adds request idempotency and delivery indexes',/growth_sms_messages_request_idempotency_idx/.test(migration)&&/growth_sms_messages_org_status_idx/.test(migration)],
  ['Email template migration enables RLS and tenant role policies',/enable row level security/.test(emailMigration)&&/growth_email_templates_editor_insert/.test(emailMigration)&&/growth_email_templates_editor_update/.test(emailMigration)],
- ['Package version and full verification script include Module 10',['6.100.0','6.101.0','6.102.0','6.103.0','6.104.0','6.105.0','6.106.0','6.108.0','6.109.0','6.110.0','6.112.0','6.113.0','6.114.0','6.115.0','6.116.0','6.118.0','6.119.0','6.120.0','6.121.0','6.122.0','6.123.0','6.124.0','6.124.1','6.124.2','6.124.3','6.124.4','6.124.5','6.124.6'].includes(pkg.version)&&pkg.scripts['verify:all'].includes('verify:growth-communication-center-v61000')]
+ ['Package version and full verification script include Module 10',['6.100.0','6.101.0','6.102.0','6.103.0','6.104.0','6.105.0','6.106.0','6.108.0','6.109.0','6.110.0','6.112.0','6.113.0','6.114.0','6.115.0','6.116.0','6.118.0','6.119.0','6.120.0','6.121.0','6.122.0','6.123.0','6.124.0','6.124.1','6.124.2','6.124.3','6.124.4','6.124.5','6.124.6','6.124.7'].includes(pkg.version)&&pkg.scripts['verify:all'].includes('verify:growth-communication-center-v61000')]
 ];
 let failed=0;for(const [name,ok] of checks){console.log(`${ok?'PASS':'FAIL'} ${name}`);if(!ok)failed++;}
 console.log(`${checks.length-failed}/${checks.length} Module 10 checks passed.`);process.exit(failed?1:0);

@@ -2,7 +2,7 @@ const fs=require('fs');const pkg=require('../package.json');
 const api=fs.readFileSync('app/api/growth/autonomous-schedules/route.ts','utf8');
 const worker=fs.readFileSync('app/api/growth/worker/route.ts','utf8');
 const ui=fs.readFileSync('components/growth-autonomous-schedules.tsx','utf8');
-const migration=fs.readFileSync('supabase/migrations/20261116110000_growth_command_center_scheduler_v62500.sql','utf8');
+const migration=fs.readFileSync('supabase/migrations/20261117034633_growth_command_center_scheduler_v62500.sql','utf8');
 const checks=[
  ['new alert scan schedule type is accepted with empty config',api.includes("type==='command_alert_scan'")&&api.includes("Object.keys(config).length===0")],
  ['daily and weekly summary periods are validated',api.includes("type==='command_center_summary'")&&api.includes("['daily','weekly'].includes")],
@@ -23,5 +23,5 @@ const checks=[
  ['existing schedule lifecycle controls remain available',ui.includes('Pause')&&ui.includes('Run now')&&ui.includes('Delete')],
  ['migration expands schedule type constraint',migration.includes("'command_alert_scan','command_center_summary'")],
  ['migration indexes enabled command schedules',migration.includes('growth_autonomous_schedules_command_center_due_idx')],
- ['release version and verifier registration are current',['6.120.0','6.121.0','6.122.0','6.123.0','6.124.0','6.124.1','6.124.2','6.124.3','6.124.4','6.124.5','6.124.6'].includes(pkg.version),'6.121.0','6.122.0'&&pkg.scripts['verify:all'].includes('verify:growth-command-center-scheduler-v62500')]
+ ['release version and verifier registration are current',['6.120.0','6.121.0','6.122.0','6.123.0','6.124.0','6.124.1','6.124.2','6.124.3','6.124.4','6.124.5','6.124.6','6.124.7'].includes(pkg.version),'6.121.0','6.122.0'&&pkg.scripts['verify:all'].includes('verify:growth-command-center-scheduler-v62500')]
 ];let fail=0;for(const [name,ok] of checks){console.log(`${ok?'PASS':'FAIL'} ${name}`);if(!ok)fail++;}console.log(`${checks.length-fail}/${checks.length} Function 12 scheduler checks passed`);process.exitCode=fail?1:0;

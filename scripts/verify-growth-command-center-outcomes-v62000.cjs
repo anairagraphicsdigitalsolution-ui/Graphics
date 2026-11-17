@@ -1,12 +1,12 @@
 const fs=require('node:fs');
 const api=fs.readFileSync('app/api/growth/command-actions/route.ts','utf8');
 const ui=fs.readFileSync('components/growth-command-action-execution.tsx','utf8');
-const migration=fs.readFileSync('supabase/migrations/20261116090000_growth_command_action_feedback_v62000.sql','utf8');
+const migration=fs.readFileSync('supabase/migrations/20261117034628_growth_command_action_feedback_v62000.sql','utf8');
 const checks=[
  ['outcome API remains workspace-scoped',api.includes(".eq('organization_id', orgId)")],
  ['linked CRM task status is loaded from source of truth',api.includes("from('growth_tasks').select('id,status,completed_at,updated_at')")],
  ['only tasks linked to executed actions are tracked',api.includes("action.status !== 'executed'")&&api.includes("action.result?.task_id")],
- ['task lookup is tenant scoped',api.includes(".eq('id', action.result.task_id).eq('organization_id', orgId)")],
+ ['task lookup is tenant scoped',api.includes(".eq('id', taskId).eq('organization_id', orgId)")],
  ['feedback types are allow-listed',api.includes("['positive','negative','neutral']")],
  ['rating is constrained to integer 1..5',api.includes('rating < 1 || rating > 5')],
  ['feedback notes are length bounded',api.includes("slice(0,1200)")],

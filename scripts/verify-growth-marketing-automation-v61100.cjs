@@ -10,7 +10,7 @@ const reliabilityUi=read('components/growth-automation-reliability.tsx');
 const control=read('components/growth-control-center.tsx');
 const pkg=JSON.parse(read('package.json'));
 const checks=[
- ['release package version is 6.101.0',['6.101.0','6.102.0','6.103.0','6.104.0','6.105.0','6.106.0','6.108.0','6.109.0','6.110.0','6.112.0','6.113.0','6.114.0','6.115.0','6.116.0','6.118.0','6.119.0','6.120.0','6.121.0','6.122.0','6.123.0','6.124.0','6.124.1','6.124.2','6.124.3','6.124.4','6.124.5','6.124.6'].includes(pkg.version)],
+ ['release package version is 6.101.0',['6.101.0','6.102.0','6.103.0','6.104.0','6.105.0','6.106.0','6.108.0','6.109.0','6.110.0','6.112.0','6.113.0','6.114.0','6.115.0','6.116.0','6.118.0','6.119.0','6.120.0','6.121.0','6.122.0','6.123.0','6.124.0','6.124.1','6.124.2','6.124.3','6.124.4','6.124.5','6.124.6','6.124.7'].includes(pkg.version)],
  ['workflow run has bounded configurable attempts',/max_attempts integer not null default 5/.test(migration)&&/max_attempts between 1 and 20/.test(migration)],
  ['workflow claims have per-claim UUID tokens',/claim_token uuid/.test(migration)&&/claim_token=gen_random_uuid\(\)/.test(migration)],
  ['workflow claim uses SKIP LOCKED for concurrent workers',/for update skip locked/.test(migration)],

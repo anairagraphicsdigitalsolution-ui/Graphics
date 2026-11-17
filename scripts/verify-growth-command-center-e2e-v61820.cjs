@@ -17,7 +17,7 @@ const checks = [
   ['browser test captures success/failure screenshots', spec.includes('artifacts/growth-command-center-e2e.png') && spec.includes('artifacts/growth-command-center-e2e-failure.png')],
   ['authenticated E2E remains an opt-in command, not a fake offline PASS', pkg.scripts['e2e:command-center'] === 'node e2e/growth-command-center.spec.mjs'],
   ['focused verifier is included in verify:all', pkg.scripts['verify:all'].includes('verify:growth-command-center-e2e-v61820')],
-  ['release package version remains compatible after Function 5', ['6.110.0','6.112.0','6.113.0','6.114.0','6.115.0','6.116.0','6.118.0','6.119.0','6.120.0','6.121.0','6.122.0','6.123.0','6.124.0','6.124.1','6.124.2','6.124.3','6.124.4','6.124.5','6.124.6'].includes(pkg.version)],
+  ['release package version remains compatible after Function 5', ['6.110.0','6.112.0','6.113.0','6.114.0','6.115.0','6.116.0','6.118.0','6.119.0','6.120.0','6.121.0','6.122.0','6.123.0','6.124.0','6.124.1','6.124.2','6.124.3','6.124.4','6.124.5','6.124.6','6.124.7'].includes(pkg.version)],
 ];
 let failed = 0;
 for (const [label, ok] of checks) { console.log(`${ok ? 'PASS' : 'FAIL'} ${label}`); if (!ok) failed++; }

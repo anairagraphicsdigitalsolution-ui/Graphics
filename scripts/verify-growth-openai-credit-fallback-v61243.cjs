@@ -14,6 +14,6 @@ check('Briefing preserves rule-based fallback on provider 429', briefing.include
 check('Function returns fallback response rather than failing request', briefing.includes('return apiJson({ briefing, metrics, aiMode, aiNotice });'));
 check('Reconciliation date validator is declared at module scope', /^const validDate = \(s: string\)/m.test(reconciliation));
 check('GET and POST both use the shared date validator', (reconciliation.match(/validDate\(/g) || []).length >= 3);
-check('Release version bumped', ['6.124.4','6.124.5','6.124.6'].includes(pkg.version));
+check('Release version bumped', ['6.124.4','6.124.5','6.124.6','6.124.7'].includes(pkg.version));
 console.log(`RESULT ${pass} PASS ${fail} FAIL`);
 process.exit(fail?1:0);

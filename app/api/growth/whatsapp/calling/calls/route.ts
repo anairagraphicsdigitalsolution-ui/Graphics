@@ -36,12 +36,20 @@ export async function GET(req: NextRequest) {
   if (!organizationId) return apiJson({ error: 'Workspace is required.' }, 400);
   if (!await requireGrowthRole(c.db, c.userId, organizationId, ['owner', 'manager'])) return apiJson({ error: 'Workspace owner or manager permission required.' }, 403);
   if (!await requireGrowthFeature(c.db, c.userId, organizationId, 'whatsapp')) return apiJson({ error: 'WhatsApp is not included in this workspace plan.' }, 402);
-  const { data, error } = await c.db.from('growth_whatsapp_call_sessions')
-    .select('id,recipient_phone,call_metadata,created_at,whatsapp_call_id')
-    .eq('organization_id', organizationId).eq('direction', 'inbound').eq('call_status', 'ringing')
-    .order('created_at', { ascending: true }).limit(10);
-  if (error) return apiJson({ error: 'Could not load the inbound call queue.' }, 503);
-  return apiJson({ inboundCalls: data || [], iceServers: getIceServers(c.userId), turnConfigured: getIceServers(c.userId).length > 1 });
+  const sessionId = req.nextUrl.searchParams.get('sessionId') || '';
+  const [{ data, error }, sessionResult] = await Promise.all([
+    c.db.from('growth_whatsapp_call_sessions')
+      .select('id,recipient_phone,call_metadata,created_at,whatsapp_call_id')
+      .eq('organization_id', organizationId).eq('direction', 'inbound').eq('call_status', 'ringing')
+      .order('created_at', { ascending: true }).limit(10),
+    sessionId
+      ? c.db.from('growth_whatsapp_call_sessions').select('id,call_status,direction,ended_at,provider_error,updated_at').eq('organization_id', organizationId).eq('id', sessionId).maybeSingle()
+      : Promise.resolve({ data: null, error: null } as any),
+  ]);
+  if (error || sessionResult.error) return apiJson({ error: 'Could not load the WhatsApp call state.' }, 503);
+  if (sessionId && !sessionResult.data) return apiJson({ error: 'Call session was not found in this workspace.' }, 404);
+  const iceServers = getIceServers(c.userId);
+  return apiJson({ inboundCalls: data || [], callSession: sessionResult.data || null, iceServers, turnConfigured: iceServers.length > 1 });
 }
 
 /** Native Meta Calling signaling. Browser WebRTC supplies all SDP; the server never fabricates media descriptions. */
@@ -117,7 +125,7 @@ export async function POST(req: NextRequest) {
       const { error: updateError } = await c.db.from('growth_whatsapp_call_sessions').update({ call_status: 'active', call_metadata: { ...(session.call_metadata || {}), answer_sdp: answerSdp, accept_response: result }, agent_started_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', sessionId).eq('organization_id', organizationId);
       if (updateError) return apiJson({ ok: true, warning: 'Meta accepted the call but the local session update failed; reconcile this call.' }, 202);
       await c.db.from('growth_platform_audit_events').insert({ organization_id: organizationId, actor_user_id: c.userId, event_type: 'whatsapp.call.inbound_accepted', metadata: { session_id: sessionId, provider_call_id: session.whatsapp_call_id } });
-      return apiJson({ ok: true, callStatus: 'ringing' });
+      return apiJson({ ok: true, callStatus: 'active' });
     }
     if (action === 'reject') {
       await graphCall(wa.graph_api_version, wa.phone_number_id, wa.access_token, { call_id: session.whatsapp_call_id, action: 'reject' });

@@ -25,7 +25,7 @@ const checks = [
   ['client shows evidence and confidence', component.includes('item.evidence') && component.includes('item.confidence')],
   ['client handles partial data', component.includes('result.dataQuality.partial')],
   ['command center mounts predictive insights', center.includes('GrowthCommandPredictiveInsights organizationId={organizationId}')],
-  ['release version and verifier registration are current', ['6.121.0','6.122.0','6.123.0','6.124.0','6.124.1','6.124.2','6.124.3','6.124.4','6.124.5','6.124.6'].includes(pkg.version) && pkg.scripts['verify:all'].includes('verify:growth-command-center-insights-v62600')],
+  ['release version and verifier registration are current', ['6.121.0','6.122.0','6.123.0','6.124.0','6.124.1','6.124.2','6.124.3','6.124.4','6.124.5','6.124.6','6.124.7'].includes(pkg.version) && pkg.scripts['verify:all'].includes('verify:growth-command-center-insights-v62600')],
 ];
 let failed = 0;
 for (const [name, ok] of checks) { console.log(`${ok ? 'PASS' : 'FAIL'} ${name}`); if (!ok) failed += 1; }

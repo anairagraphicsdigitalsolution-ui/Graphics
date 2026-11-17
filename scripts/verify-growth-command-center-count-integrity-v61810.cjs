@@ -13,7 +13,7 @@ const checks = [
   ['tenant scope and role gate remain enforced', api.includes('requireGrowthRole') && api.includes(".eq('organization_id', organizationId)")],
   ['CRM feature entitlement remains enforced', api.includes("requireGrowthFeature(ctx.db, ctx.userId, organizationId, 'crm')")],
   ['focused verifier is registered in verify:all', pkg.scripts['verify:all'].includes('verify:growth-command-center-count-integrity-v61810')],
-  ['release version is compatible with Function 5', ['6.109.0','6.110.0','6.112.0','6.113.0','6.114.0','6.115.0','6.116.0','6.118.0','6.119.0','6.120.0','6.121.0','6.122.0','6.123.0','6.124.0','6.124.1','6.124.2','6.124.3','6.124.4','6.124.5','6.124.6'].includes(pkg.version)],
+  ['release version is compatible with Function 5', ['6.109.0','6.110.0','6.112.0','6.113.0','6.114.0','6.115.0','6.116.0','6.118.0','6.119.0','6.120.0','6.121.0','6.122.0','6.123.0','6.124.0','6.124.1','6.124.2','6.124.3','6.124.4','6.124.5','6.124.6','6.124.7'].includes(pkg.version)],
 ];
 let failed = 0;
 for (const [label, ok] of checks) { console.log(`${ok ? 'PASS' : 'FAIL'} ${label}`); if (!ok) failed++; }

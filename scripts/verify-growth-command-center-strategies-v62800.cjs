@@ -7,7 +7,7 @@ const ui = fs.readFileSync(path.join(root, 'components/growth-command-predictive
 const actions = fs.readFileSync(path.join(root, 'app/api/growth/command-actions/route.ts'), 'utf8');
 let pass = 0, fail = 0;
 function check(name, condition) { if (condition) { pass++; console.log(`PASS ${name}`); } else { fail++; console.log(`FAIL ${name}`); } }
-check('release version is v6.124.0', ['6.124.0','6.124.1','6.124.2','6.124.3','6.124.4','6.124.5','6.124.6'].includes(pkg.version),'6.124.1','6.124.2','6.124.3','6.124.4','6.124.5','6.124.6');
+check('release version is v6.124.0', ['6.124.0','6.124.1','6.124.2','6.124.3','6.124.4','6.124.5','6.124.6','6.124.7'].includes(pkg.version),'6.124.1','6.124.2','6.124.3','6.124.4','6.124.5','6.124.6');
 check('strategy verifier is registered in full suite', pkg.scripts['verify:all'].includes('verify:growth-command-center-strategies-v62800'));
 check('strategy endpoint remains authenticated and workspace scoped', route.includes('growthContext(req)') && route.includes("eq('organization_id', organizationId)"));
 check('strategy generator is deterministic and bounded to current signals', route.includes('const strategies:') && route.includes('highIntentLeads.length >= 3') && route.includes('draftCampaigns.length > 0'));

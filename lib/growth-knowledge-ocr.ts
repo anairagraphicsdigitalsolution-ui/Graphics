@@ -51,8 +51,18 @@ export async function extractKnowledgeOcr(db: SupabaseClient, input: OcrInput) {
   });
   const payload: any = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(String(payload.error?.message || 'OCR provider rejected this document.').slice(0, 240));
-  const text = extractOutputText(payload).replace(/\0/g, '').replace(/\s+/g, ' ').trim().slice(0, MAX_OCR_OUTPUT);
-  if (text.replace(/\[illegible\]/gi, '').trim().length < 20) throw new Error('OCR could not extract enough readable text. Try a clearer scan or a text-based PDF.');
+  // Preserve line and paragraph boundaries: flattening all whitespace destroys table rows,
+  // headings and form structure that downstream chunking/search needs to preserve.
+  const text = extractOutputText(payload)
+    .replace(/\0/g, '')
+    .replace(/\r\n?/g, '\n')
+    .split('\n')
+    .map((line) => line.replace(/[\t ]+/g, ' ').trim())
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+    .slice(0, MAX_OCR_OUTPUT);
+  if (text.replace(/\[illegible\]/gi, '').replace(/\s/g, '').length < 20) throw new Error('OCR could not extract enough readable text. Try a clearer scan or a text-based PDF.');
   const usage = payload.usage || {};
   const { error: usageError } = await db.from('growth_usage_logs').insert({
     organization_id: input.organizationId, provider: 'openai', model: OCR_MODEL,

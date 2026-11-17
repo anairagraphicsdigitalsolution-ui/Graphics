@@ -10,7 +10,7 @@ const checks = [
   ['schedule stale lease uses null-safe predicate', /staleSchedules=schedules\.filter\(\(x:any\)=>x\.enabled&&isStaleLease\(x\.locked_at,now,20\)\)/.test(source)],
   ['job stale lease uses null-safe predicate', /staleJobs=jobs\.filter\(\(x:any\)=>x\.status==='processing'&&isStaleLease\(x\.locked_at,now,10\)\)/.test(source)],
   ['old unsafe repeated nullable comparison removed', !/ageMinutes\(x\.locked_at,now\)!==null&&ageMinutes\(x\.locked_at,now\)>=/.test(source)],
-  ['release version bumped', JSON.parse(fs.readFileSync(path.join(__dirname,'..','package.json'),'utf8')).version === '6.124.6'],
+  ['release version bumped', JSON.parse(fs.readFileSync(path.join(__dirname,'..','package.json'),'utf8')).version === '6.124.7'],
 ];
 let failed=0;
 for (const [name,ok] of checks) { console.log(`${ok?'PASS':'FAIL'} ${name}`); if(!ok) failed++; }

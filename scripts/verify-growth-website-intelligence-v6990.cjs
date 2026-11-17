@@ -49,7 +49,7 @@ const checks=[
  ['All Module 9 tables enable RLS and deny anonymous direct access',migration.match(/enable row level security/g)?.length===3&&migration.includes('from anon,authenticated')],
  ['Public tracking data is server-role only for writes',migration.includes('grant all on public.growth_website_events to service_role')&&migration.includes('grant all on public.growth_website_form_submissions to service_role')],
  ['Form idempotency migration creates a unique website submission key',idem.includes('growth_website_form_submission_idempotency_idx')&&idem.includes('alter column submission_id set not null')],
- ['Package version and full verification script include Module 9',['6.99.0','6.100.0','6.101.0','6.102.0','6.103.0','6.104.0','6.105.0','6.106.0','6.108.0','6.109.0','6.110.0','6.112.0','6.113.0','6.114.0','6.115.0','6.116.0','6.118.0','6.119.0','6.120.0','6.121.0','6.122.0','6.123.0','6.124.0','6.124.1','6.124.2','6.124.3','6.124.4','6.124.5','6.124.6'].includes(pkg.version)&&pkg.scripts['verify:all'].includes('verify:growth-website-intelligence-v6990')],
+ ['Package version and full verification script include Module 9',['6.99.0','6.100.0','6.101.0','6.102.0','6.103.0','6.104.0','6.105.0','6.106.0','6.108.0','6.109.0','6.110.0','6.112.0','6.113.0','6.114.0','6.115.0','6.116.0','6.118.0','6.119.0','6.120.0','6.121.0','6.122.0','6.123.0','6.124.0','6.124.1','6.124.2','6.124.3','6.124.4','6.124.5','6.124.6','6.124.7'].includes(pkg.version)&&pkg.scripts['verify:all'].includes('verify:growth-website-intelligence-v6990')],
 ];
 let failed=0;for(const [name,ok] of checks){console.log(`${ok?'PASS':'FAIL'} ${name}`);if(!ok)failed++;}
 console.log(`${checks.length-failed} PASS, ${failed} FAIL`);process.exitCode=failed?1:0;

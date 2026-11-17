@@ -21,7 +21,7 @@ check('keyboard focus-visible treatment present', css.includes(':focus-visible{o
 check('tablet breakpoint included', css.includes('@media(max-width:760px)'));
 check('small mobile breakpoint included', css.includes('@media(max-width:480px)'));
 check('all routes have page component source', pages.every(f=>fs.statSync(f).size>0));
-check('package version supports current release', ['6.124.2','6.124.3','6.124.4','6.124.5','6.124.6'].includes(pkg.version));
+check('package version supports current release', ['6.124.2','6.124.3','6.124.4','6.124.5','6.124.6','6.124.7'].includes(pkg.version));
 check('design verifier registered in full suite', pkg.scripts['verify:all'].includes('verify:growth-pages-design-v61242'));
 console.log(`RESULT ${pass} PASS ${fail} FAIL · ${pages.length} routes`);
 process.exit(fail?1:0);
